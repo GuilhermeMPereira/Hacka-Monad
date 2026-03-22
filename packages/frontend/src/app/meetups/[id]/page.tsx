@@ -3,7 +3,7 @@
 import { useParams } from "next/navigation";
 import { useAccount } from "wagmi";
 import { ConnectButton } from "@rainbow-me/rainbowkit";
-import { useGetMeetup } from "@/hooks/useMeetupManager";
+import { useGetMeetup, useGetConfirmationStatus } from "@/hooks/useMeetupManager";
 import { MeetupActions } from "@/components/MeetupActions";
 import { shortenAddress } from "@/lib/utils";
 
@@ -22,6 +22,34 @@ const STATUS_COLORS: Record<number, string> = {
   3: "text-success",
   4: "text-error",
 };
+
+function InviteeRow({
+  meetupId,
+  inviteeAddress,
+}: {
+  meetupId: bigint;
+  inviteeAddress: string;
+}) {
+  const { data: confirmed } = useGetConfirmationStatus(
+    meetupId,
+    inviteeAddress as `0x${string}`
+  );
+
+  return (
+    <div className="flex items-center justify-between py-1.5 border-b border-border last:border-0">
+      <span className="font-mono text-xs text-text-primary">
+        {shortenAddress(inviteeAddress)}
+      </span>
+      <span
+        className={`text-xs font-semibold ${
+          confirmed ? "text-success" : "text-warning"
+        }`}
+      >
+        {confirmed ? "Confirmado" : "Pendente"}
+      </span>
+    </div>
+  );
+}
 
 export default function MeetupDetailPage() {
   const params = useParams();
@@ -58,26 +86,22 @@ export default function MeetupDetailPage() {
     );
   }
 
-  const meetup = data as {
-    id: bigint;
-    creator: string;
-    invitee: string;
-    restaurantId: string;
-    status: number;
-    billAmount: bigint;
-    billPayer: string;
-    createdAt: bigint;
-  };
+  // getMeetup now returns a tuple: [id, creator, invitees, restaurantId, status, billAmount, billPayer, createdAt]
+  const [id, creator, invitees, restaurantId, status, billAmount, billPayer, createdAt] =
+    data as [bigint, string, string[], string, number, bigint, string, bigint];
 
-  const status = meetup.status;
-  const createdDate = new Date(Number(meetup.createdAt) * 1000);
+  const createdDate = new Date(Number(createdAt) * 1000);
+  const isCreator = address?.toLowerCase() === creator.toLowerCase();
+  const isInvitee = invitees.some(
+    (inv) => inv.toLowerCase() === address?.toLowerCase()
+  );
 
   return (
     <div className="max-w-lg mx-auto space-y-6">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">
-            Meetup #{meetup.id.toString()}
+            Meetup #{id.toString()}
           </h1>
           <p className="text-text-muted text-sm">
             Criado em {createdDate.toLocaleDateString("pt-BR")}
@@ -95,25 +119,41 @@ export default function MeetupDetailPage() {
         <div className="grid grid-cols-2 gap-4 text-sm">
           <div>
             <span className="text-text-muted">Criador</span>
-            <p className="font-mono text-xs mt-0.5">{shortenAddress(meetup.creator)}</p>
-          </div>
-          <div>
-            <span className="text-text-muted">Convidado</span>
-            <p className="font-mono text-xs mt-0.5">{shortenAddress(meetup.invitee)}</p>
+            <p className="font-mono text-xs mt-0.5">{shortenAddress(creator)}</p>
           </div>
           <div>
             <span className="text-text-muted">Restaurante</span>
-            <p className="mt-0.5">{meetup.restaurantId}</p>
+            <p className="mt-0.5">{restaurantId}</p>
           </div>
           <div>
             <span className="text-text-muted">Seu papel</span>
             <p className="mt-0.5 text-secondary font-medium">
-              {address?.toLowerCase() === meetup.creator.toLowerCase()
+              {isCreator
                 ? "Criador"
-                : address?.toLowerCase() === meetup.invitee.toLowerCase()
+                : isInvitee
                 ? "Convidado"
                 : "Observador"}
             </p>
+          </div>
+          <div>
+            <span className="text-text-muted">Convidados</span>
+            <p className="mt-0.5">{invitees.length} convidado{invitees.length !== 1 ? "s" : ""}</p>
+          </div>
+        </div>
+
+        {/* Invitees list with confirmation status */}
+        <div>
+          <h4 className="text-sm font-semibold text-text-secondary mb-2">
+            Lista de convidados
+          </h4>
+          <div className="bg-bg rounded-btn p-3">
+            {invitees.map((inv) => (
+              <InviteeRow
+                key={inv}
+                meetupId={id}
+                inviteeAddress={inv}
+              />
+            ))}
           </div>
         </div>
 
@@ -129,12 +169,12 @@ export default function MeetupDetailPage() {
       <div className="card p-6">
         <h2 className="text-lg font-semibold mb-4">Acoes</h2>
         <MeetupActions
-          meetupId={meetup.id}
+          meetupId={id}
           status={status}
-          creator={meetup.creator}
-          invitee={meetup.invitee}
-          billAmount={meetup.billAmount}
-          billPayer={meetup.billPayer}
+          creator={creator}
+          invitees={invitees}
+          billAmount={billAmount}
+          billPayer={billPayer}
           currentUser={address!}
           onSuccess={() => refetch()}
         />

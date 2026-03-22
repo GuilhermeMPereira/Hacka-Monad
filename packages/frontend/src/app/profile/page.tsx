@@ -7,6 +7,7 @@ import { useMeritBalance } from "@/hooks/useMeritCoin";
 import { useGetUserMeetups, useGetMeetup } from "@/hooks/useMeetupManager";
 import { ReputationCard } from "@/components/ReputationCard";
 import { FaucetButton } from "@/components/FaucetButton";
+import { FriendsList } from "@/components/FriendsList";
 import { shortenAddress } from "@/lib/utils";
 
 const STATUS_LABELS: Record<number, string> = {
@@ -44,42 +45,35 @@ function MeetupHistoryItem({
 
   if (!data) return null;
 
-  const meetup = data as {
-    id: bigint;
-    creator: string;
-    invitee: string;
-    restaurantId: string;
-    status: number;
-    billAmount: bigint;
-    billPayer: string;
-    createdAt: bigint;
-  };
+  // getMeetup now returns a tuple: [id, creator, invitees, restaurantId, status, billAmount, billPayer, createdAt]
+  const [id, creator, invitees, , status, billAmount] =
+    data as [bigint, string, string[], string, number, bigint, string, bigint];
 
-  const otherParty =
-    currentUser.toLowerCase() === meetup.creator.toLowerCase()
-      ? meetup.invitee
-      : meetup.creator;
+  const isCreator = currentUser.toLowerCase() === creator.toLowerCase();
+  const otherLabel = isCreator
+    ? `com ${invitees.length} convidado${invitees.length !== 1 ? "s" : ""}`
+    : `com ${shortenAddress(creator)}`;
 
   return (
     <div className="flex items-center justify-between py-2 border-b border-border last:border-0">
       <div className="flex items-center gap-3">
         <span className="text-text-primary text-sm font-medium">
-          #{meetup.id.toString()}
+          #{id.toString()}
         </span>
         <span className="text-text-muted text-xs">
-          com {shortenAddress(otherParty)}
+          {otherLabel}
         </span>
       </div>
       <div className="flex items-center gap-3">
-        {meetup.billAmount > 0n && (
+        {billAmount > 0n && (
           <span className="text-xs font-tabular text-text-secondary">
-            {parseFloat(formatEther(meetup.billAmount)).toFixed(2)} MERIT
+            {parseFloat(formatEther(billAmount)).toFixed(2)} MERIT
           </span>
         )}
         <span
-          className={`text-xs font-semibold ${STATUS_COLORS[meetup.status] ?? "text-text-muted"}`}
+          className={`text-xs font-semibold ${STATUS_COLORS[status] ?? "text-text-muted"}`}
         >
-          {STATUS_LABELS[meetup.status] ?? ""}
+          {STATUS_LABELS[status] ?? ""}
         </span>
       </div>
     </div>
@@ -153,6 +147,12 @@ export default function ProfilePage() {
             ))}
           </div>
         )}
+      </div>
+
+      {/* Friends */}
+      <div>
+        <h3 className="text-lg font-semibold text-text-primary mb-3">Meus Amigos</h3>
+        <FriendsList />
       </div>
     </div>
   );

@@ -22,7 +22,7 @@ const STATUS_COLORS: Record<number, string> = {
 interface MeetupCardProps {
   meetupId: bigint;
   creator: string;
-  invitee: string;
+  invitees: string[];
   restaurantId: string;
   status: number;
   currentUser?: string;
@@ -31,17 +31,16 @@ interface MeetupCardProps {
 export function MeetupCard({
   meetupId,
   creator,
-  invitee,
+  invitees,
   restaurantId,
   status,
   currentUser,
 }: MeetupCardProps) {
-  const role =
-    currentUser?.toLowerCase() === creator.toLowerCase()
-      ? "Criador"
-      : currentUser?.toLowerCase() === invitee.toLowerCase()
-      ? "Convidado"
-      : "";
+  const isCreator = currentUser?.toLowerCase() === creator.toLowerCase();
+  const isInvitee = invitees.some(
+    (inv) => inv.toLowerCase() === currentUser?.toLowerCase()
+  );
+  const role = isCreator ? "Criador" : isInvitee ? "Convidado" : "";
 
   return (
     <Link href={`/meetups/${meetupId.toString()}`}>
@@ -66,8 +65,8 @@ export function MeetupCard({
             <p className="font-mono text-xs">{shortenAddress(creator)}</p>
           </div>
           <div>
-            <span className="text-text-muted">Convidado</span>
-            <p className="font-mono text-xs">{shortenAddress(invitee)}</p>
+            <span className="text-text-muted">Convidados</span>
+            <p className="text-xs">{invitees.length} convidado{invitees.length !== 1 ? "s" : ""}</p>
           </div>
         </div>
 

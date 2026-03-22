@@ -25,24 +25,17 @@ function MeetupItem({
 
   if (!data) return null;
 
-  const meetup = data as {
-    id: bigint;
-    creator: string;
-    invitee: string;
-    restaurantId: string;
-    status: number;
-    billAmount: bigint;
-    billPayer: string;
-    createdAt: bigint;
-  };
+  // getMeetup now returns a tuple: [id, creator, invitees, restaurantId, status, billAmount, billPayer, createdAt]
+  const [id, creator, invitees, restaurantId, status] =
+    data as [bigint, string, string[], string, number, bigint, string, bigint];
 
   return (
     <MeetupCard
-      meetupId={meetup.id}
-      creator={meetup.creator}
-      invitee={meetup.invitee}
-      restaurantId={meetup.restaurantId}
-      status={meetup.status}
+      meetupId={id}
+      creator={creator}
+      invitees={invitees}
+      restaurantId={restaurantId}
+      status={status}
       currentUser={currentUser}
     />
   );

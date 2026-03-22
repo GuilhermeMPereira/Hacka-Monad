@@ -47,7 +47,7 @@ export const MEETUP_MANAGER_ABI = [
         components: [
           { name: "id", type: "uint256" },
           { name: "creator", type: "address" },
-          { name: "invitee", type: "address" },
+          { name: "invitees", type: "address[]" },
           { name: "restaurantId", type: "string" },
           { name: "status", type: "uint8" },
           { name: "billAmount", type: "uint256" },
@@ -56,6 +56,16 @@ export const MEETUP_MANAGER_ABI = [
         ],
       },
     ],
+    stateMutability: "view",
+  },
+  {
+    type: "function",
+    name: "getConfirmationStatus",
+    inputs: [
+      { name: "meetupId", type: "uint256" },
+      { name: "invitee", type: "address" },
+    ],
+    outputs: [{ name: "", type: "bool" }],
     stateMutability: "view",
   },
   {

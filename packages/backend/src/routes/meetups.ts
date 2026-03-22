@@ -4,6 +4,11 @@ import { publicClient } from "../plugins/viem";
 import { config } from "../config";
 import { MEETUP_MANAGER_ABI } from "../lib/abis";
 
+interface ConfirmationStatusEntry {
+  invitee: string;
+  confirmed: boolean;
+}
+
 const MEETUP_STATUS_MAP: Record<number, string> = {
   0: "Pending",
   1: "Confirmed",
@@ -15,7 +20,7 @@ const MEETUP_STATUS_MAP: Record<number, string> = {
 function formatMeetup(meetup: {
   id: bigint;
   creator: string;
-  invitee: string;
+  invitees: readonly string[];
   restaurantId: string;
   status: number;
   billAmount: bigint;
@@ -25,7 +30,7 @@ function formatMeetup(meetup: {
   return {
     id: meetup.id.toString(),
     creator: meetup.creator,
-    invitee: meetup.invitee,
+    invitees: [...meetup.invitees],
     restaurantId: meetup.restaurantId,
     status: MEETUP_STATUS_MAP[meetup.status] ?? "Unknown",
     billAmount: formatEther(meetup.billAmount),
@@ -105,6 +110,40 @@ export async function meetupRoutes(app: FastifyInstance) {
       );
 
       return meetups.map(formatMeetup);
+    } catch {
+      return reply.status(502).send({ error: "RPC request failed" });
+    }
+  });
+
+  app.get<{ Params: { id: string } }>("/:id/confirmations", async (request, reply) => {
+    if (!config.meetupManagerAddress) {
+      return reply.status(503).send({ error: "Contract not deployed. Set MEETUP_MANAGER_ADDRESS." });
+    }
+
+    const { id } = request.params;
+    const meetupId = BigInt(id);
+
+    try {
+      const meetup = await publicClient.readContract({
+        address: config.meetupManagerAddress,
+        abi: MEETUP_MANAGER_ABI,
+        functionName: "getMeetup",
+        args: [meetupId],
+      });
+
+      const confirmations: ConfirmationStatusEntry[] = await Promise.all(
+        meetup.invitees.map(async (invitee) => {
+          const confirmed = await publicClient.readContract({
+            address: config.meetupManagerAddress!,
+            abi: MEETUP_MANAGER_ABI,
+            functionName: "getConfirmationStatus",
+            args: [meetupId, invitee],
+          });
+          return { invitee, confirmed };
+        })
+      );
+
+      return { meetupId: id, confirmations };
     } catch {
       return reply.status(502).send({ error: "RPC request failed" });
     }

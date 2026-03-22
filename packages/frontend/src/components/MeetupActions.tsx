@@ -7,6 +7,7 @@ import {
   useRegisterBill,
   useSettleBill,
   useCancelMeetup,
+  useGetConfirmationStatus,
 } from "@/hooks/useMeetupManager";
 import { useApproveMerit, useAllowance } from "@/hooks/useMeritCoin";
 import { MEETUP_MANAGER_ADDRESS } from "@/lib/contracts";
@@ -15,7 +16,7 @@ interface MeetupActionsProps {
   meetupId: bigint;
   status: number;
   creator: string;
-  invitee: string;
+  invitees: string[];
   billAmount: bigint;
   billPayer: string;
   currentUser: string;
@@ -61,7 +62,7 @@ export function MeetupActions({
   meetupId,
   status,
   creator,
-  invitee,
+  invitees,
   billAmount,
   billPayer,
   currentUser,
@@ -70,15 +71,24 @@ export function MeetupActions({
   const [billInput, setBillInput] = useState("");
 
   const isCreator = currentUser.toLowerCase() === creator.toLowerCase();
-  const isInvitee = currentUser.toLowerCase() === invitee.toLowerCase();
+  const isInvitee = invitees.some(
+    (inv) => inv.toLowerCase() === currentUser.toLowerCase()
+  );
   const isParticipant = isCreator || isInvitee;
 
-  // Determine debtor: the participant who did NOT pay the bill
-  const debtor =
-    billPayer.toLowerCase() === creator.toLowerCase() ? invitee : creator;
-  const isDebtor = currentUser.toLowerCase() === debtor.toLowerCase();
+  const totalParticipants = invitees.length + 1; // invitees + creator
+  const splitAmount = billAmount > 0n ? billAmount / BigInt(totalParticipants) : 0n;
 
-  const splitAmount = billAmount > 0n ? billAmount / 2n : 0n;
+  // Check if the current user is NOT the bill payer (i.e. needs to pay their split)
+  const isBillPayer =
+    billPayer && currentUser.toLowerCase() === billPayer.toLowerCase();
+  const isDebtor = isParticipant && !isBillPayer && billPayer !== "0x0000000000000000000000000000000000000000";
+
+  // Check current user's confirmation status
+  const { data: hasConfirmed } = useGetConfirmationStatus(
+    meetupId,
+    isInvitee ? (currentUser as `0x${string}`) : undefined
+  );
 
   const confirm = useConfirmMeetup();
   const register = useRegisterBill();
@@ -94,8 +104,8 @@ export function MeetupActions({
   const hasEnoughAllowance =
     currentAllowance !== undefined && currentAllowance >= splitAmount;
 
-  // Pending + invitee -> Confirm
-  if (status === 0 && isInvitee) {
+  // Pending + invitee who hasn't confirmed -> Confirm
+  if (status === 0 && isInvitee && !hasConfirmed) {
     return (
       <div className="space-y-3">
         <button
@@ -121,10 +131,26 @@ export function MeetupActions({
     );
   }
 
-  // Pending + creator -> Cancel
+  // Pending + invitee who has confirmed -> Waiting for others
+  if (status === 0 && isInvitee && hasConfirmed) {
+    return (
+      <div className="bg-bg rounded-card p-4">
+        <p className="text-sm text-text-secondary">
+          Aguardando outros confirmarem...
+        </p>
+      </div>
+    );
+  }
+
+  // Pending + creator -> Cancel + show confirmations progress
   if (status === 0 && isCreator) {
     return (
       <div className="space-y-3">
+        <div className="bg-bg rounded-card p-4">
+          <p className="text-sm text-text-secondary">
+            Aguardando confirmacoes dos convidados...
+          </p>
+        </div>
         <button
           onClick={() => {
             cancel.cancelMeetup(meetupId);
@@ -189,7 +215,7 @@ export function MeetupActions({
     );
   }
 
-  // BillRegistered + debtor -> Approve then Settle (2-step)
+  // BillRegistered + debtor (not the payer) -> Approve then Settle (2-step)
   if (status === 2 && isDebtor) {
     return (
       <div className="space-y-3">
@@ -198,7 +224,13 @@ export function MeetupActions({
             Valor total: {formatEther(billAmount)} MERIT
           </p>
           <p className="text-sm text-text-secondary">
-            Sua parte (50%): <span className="font-semibold text-primary">{formatEther(splitAmount)} MERIT</span>
+            Participantes: {totalParticipants}
+          </p>
+          <p className="text-sm text-text-secondary">
+            Sua parte (1/{totalParticipants}):{" "}
+            <span className="font-semibold text-primary">
+              {formatEther(splitAmount)} MERIT
+            </span>
           </p>
         </div>
 
@@ -251,15 +283,26 @@ export function MeetupActions({
     );
   }
 
-  // BillRegistered + not debtor -> waiting
-  if (status === 2 && !isDebtor && isParticipant) {
+  // BillRegistered + bill payer -> waiting for others
+  if (status === 2 && isBillPayer) {
     return (
       <div className="bg-bg rounded-card p-4">
         <p className="text-sm text-text-secondary">
-          Aguardando o outro participante liquidar a conta...
+          Aguardando pagamentos dos outros participantes...
         </p>
         <p className="text-sm text-text-muted mt-1">
           Valor total: {formatEther(billAmount)} MERIT | Parte de cada: {formatEther(splitAmount)} MERIT
+        </p>
+      </div>
+    );
+  }
+
+  // BillRegistered + not participant -> just show info
+  if (status === 2 && !isParticipant) {
+    return (
+      <div className="bg-bg rounded-card p-4">
+        <p className="text-sm text-text-secondary">
+          Conta registrada. Aguardando liquidacao.
         </p>
       </div>
     );
