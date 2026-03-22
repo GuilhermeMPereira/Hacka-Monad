@@ -8,6 +8,8 @@ export interface Restaurant {
   rating: number;
   acceptsCrypto: boolean;
   address: string;
+  city?: string;
+  imageUrl?: string;
   description?: string;
 }
 
@@ -30,32 +32,131 @@ export interface ProfileData {
   meetupCount: number;
 }
 
+// Mock restaurants embedded in frontend as fallback
+const MOCK_RESTAURANTS: Restaurant[] = [
+  {
+    id: "1",
+    name: "Boteco do Monad",
+    cuisine: "Brasileira",
+    priceRange: 1,
+    rating: 4,
+    acceptsCrypto: true,
+    address: "Rua Augusta, 1200",
+    city: "Sao Paulo",
+    imageUrl: "https://placehold.co/400x300?text=Boteco+do+Monad",
+    description: "Boteco tradicional com petiscos e chopp gelado. Aceita pagamentos em MeritCoin.",
+  },
+  {
+    id: "2",
+    name: "Sushi Nakamoto",
+    cuisine: "Japonesa",
+    priceRange: 3,
+    rating: 5,
+    acceptsCrypto: true,
+    address: "Rua Liberdade, 350",
+    city: "Sao Paulo",
+    imageUrl: "https://placehold.co/400x300?text=Sushi+Nakamoto",
+    description: "Sushi premium com ingredientes importados. Experiencia omakase unica.",
+  },
+  {
+    id: "3",
+    name: "Churrascaria Bloco Genesis",
+    cuisine: "Churrasco",
+    priceRange: 2,
+    rating: 4,
+    acceptsCrypto: true,
+    address: "Av. Atlantica, 900",
+    city: "Rio de Janeiro",
+    imageUrl: "https://placehold.co/400x300?text=Churrascaria+Genesis",
+    description: "Rodizio completo com carnes nobres e buffet de saladas.",
+  },
+  {
+    id: "4",
+    name: "Pizzaria Consensus",
+    cuisine: "Italiana",
+    priceRange: 2,
+    rating: 5,
+    acceptsCrypto: true,
+    address: "Rua Braz Leme, 450",
+    city: "Sao Paulo",
+    imageUrl: "https://placehold.co/400x300?text=Pizzaria+Consensus",
+    description: "Pizzas artesanais assadas em forno a lenha. Massa de fermentacao natural.",
+  },
+  {
+    id: "5",
+    name: "Cafe Validator",
+    cuisine: "Cafeteria",
+    priceRange: 1,
+    rating: 4,
+    acceptsCrypto: true,
+    address: "Rua Oscar Freire, 200",
+    city: "Sao Paulo",
+    imageUrl: "https://placehold.co/400x300?text=Cafe+Validator",
+    description: "Cafes especiais e brunchs elaborados em ambiente aconchegante.",
+  },
+  {
+    id: "6",
+    name: "Taqueria Finality",
+    cuisine: "Mexicana",
+    priceRange: 1,
+    rating: 3,
+    acceptsCrypto: true,
+    address: "Rua da Consolacao, 1800",
+    city: "Sao Paulo",
+    imageUrl: "https://placehold.co/400x300?text=Taqueria+Finality",
+    description: "Tacos, burritos e nachos autenticos com toque brasileiro.",
+  },
+  {
+    id: "7",
+    name: "Bistro Hash",
+    cuisine: "Francesa",
+    priceRange: 3,
+    rating: 5,
+    acceptsCrypto: true,
+    address: "Rua Garcia d'Avila, 150",
+    city: "Rio de Janeiro",
+    imageUrl: "https://placehold.co/400x300?text=Bistro+Hash",
+    description: "Culinaria francesa contemporanea com ingredientes locais selecionados.",
+  },
+];
+
 export async function fetchRestaurants(): Promise<Restaurant[]> {
-  const res = await fetch(`${API_URL}/restaurants`);
-  if (!res.ok) throw new Error("Falha ao carregar restaurantes");
-  return res.json();
+  try {
+    const res = await fetch(`${API_URL}/api/restaurants`);
+    if (!res.ok) throw new Error("API error");
+    return res.json();
+  } catch {
+    // Fallback to embedded mock data if backend is unavailable
+    return MOCK_RESTAURANTS;
+  }
 }
 
 export async function fetchRestaurant(id: string): Promise<Restaurant> {
-  const res = await fetch(`${API_URL}/restaurants/${id}`);
-  if (!res.ok) throw new Error("Restaurante nao encontrado");
-  return res.json();
+  try {
+    const res = await fetch(`${API_URL}/api/restaurants/${id}`);
+    if (!res.ok) throw new Error("Restaurante nao encontrado");
+    return res.json();
+  } catch {
+    const found = MOCK_RESTAURANTS.find((r) => r.id === id);
+    if (!found) throw new Error("Restaurante nao encontrado");
+    return found;
+  }
 }
 
 export async function fetchUserMeetups(address: string): Promise<MeetupData[]> {
-  const res = await fetch(`${API_URL}/meetups?user=${address}`);
+  const res = await fetch(`${API_URL}/api/meetups/user/${address}`);
   if (!res.ok) throw new Error("Falha ao carregar meetups");
   return res.json();
 }
 
 export async function fetchMeetup(id: number): Promise<MeetupData> {
-  const res = await fetch(`${API_URL}/meetups/${id}`);
+  const res = await fetch(`${API_URL}/api/meetups/${id}`);
   if (!res.ok) throw new Error("Meetup nao encontrado");
   return res.json();
 }
 
 export async function fetchProfile(address: string): Promise<ProfileData> {
-  const res = await fetch(`${API_URL}/profile/${address}`);
+  const res = await fetch(`${API_URL}/api/profile/${address}`);
   if (!res.ok) throw new Error("Perfil nao encontrado");
   return res.json();
 }
