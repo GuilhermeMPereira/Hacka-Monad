@@ -12,7 +12,9 @@ export interface TransactionRecord {
     | "settle_bill"
     | "cancel_meetup"
     | "approve"
-    | "stake";
+    | "stake"
+    | "accept_bill"
+    | "dispute_bill";
   hash: string;
   timestamp: number;
   details: string;

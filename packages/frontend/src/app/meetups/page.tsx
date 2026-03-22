@@ -26,8 +26,10 @@ function MeetupItem({
   if (!data) return null;
 
   // getMeetup returns a tuple: [id, creator, invitees, restaurantId, status, billAmount, billPayer, createdAt, stakeAmount]
-  const [id, creator, invitees, restaurantId, status, , , , stakeAmount] =
-    data as [bigint, string, string[], string, number, bigint, string, bigint, bigint];
+  const rawTuple = data as [bigint, string, string[], string, number, bigint, string, bigint, bigint] | undefined;
+  if (!rawTuple) return null;
+  const [id, creator, rawInvitees, restaurantId, status, , , , stakeAmount] = rawTuple;
+  const invitees = rawInvitees || [];
 
   return (
     <MeetupCard

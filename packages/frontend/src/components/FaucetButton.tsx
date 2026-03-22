@@ -1,6 +1,6 @@
 "use client";
 
-import { useClaimFaucet, useHasClaimed } from "@/hooks/useMeritCoin";
+import { useClaimFaucet, useHasClaimed, useRequestMore } from "@/hooks/useMeritCoin";
 
 export function FaucetButton({ address }: { address: `0x${string}` }) {
   const { data: hasClaimed, isLoading: isCheckingClaimed } = useHasClaimed(address);
@@ -13,6 +13,8 @@ export function FaucetButton({ address }: { address: `0x${string}` }) {
     error,
   } = useClaimFaucet();
 
+  const topup = useRequestMore();
+
   if (isCheckingClaimed) {
     return (
       <div className="card p-4">
@@ -23,8 +25,44 @@ export function FaucetButton({ address }: { address: `0x${string}` }) {
 
   if (hasClaimed) {
     return (
-      <div className="card p-4">
-        <p className="text-text-muted text-sm">Faucet ja resgatado.</p>
+      <div className="card p-5 space-y-3">
+        <div>
+          <h3 className="font-semibold text-text-primary">Recarregar MERIT</h3>
+          <p className="text-sm text-text-secondary">
+            Precisa de mais MERIT para testes? Adicione +500 a qualquer momento.
+          </p>
+        </div>
+        <button
+          onClick={() => topup.requestMore()}
+          disabled={topup.isPending || topup.isConfirming}
+          className="btn-secondary w-full disabled:opacity-40 disabled:cursor-not-allowed"
+        >
+          {topup.isPending
+            ? "Confirme na wallet..."
+            : topup.isConfirming
+            ? "Confirmando (~400ms)..."
+            : "+ 500 MERIT"}
+        </button>
+        {topup.hash && (
+          <div className="text-sm">
+            <a
+              href={`https://testnet.monad.xyz/tx/${topup.hash}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-secondary hover:underline font-mono text-xs break-all"
+            >
+              {topup.hash}
+            </a>
+          </div>
+        )}
+        {topup.isSuccess && (
+          <p className="text-success text-sm">+500 MERIT adicionados!</p>
+        )}
+        {topup.error && (
+          <p className="text-error text-sm">
+            Erro: {topup.error.message.slice(0, 100)}
+          </p>
+        )}
       </div>
     );
   }
@@ -34,7 +72,7 @@ export function FaucetButton({ address }: { address: `0x${string}` }) {
       <div>
         <h3 className="font-semibold text-text-primary">Faucet MeritCoin</h3>
         <p className="text-sm text-text-secondary">
-          Resgate 100 MERIT para comecar a usar o app.
+          Resgate 500 MERIT para comecar a usar o app.
         </p>
       </div>
 
@@ -47,7 +85,7 @@ export function FaucetButton({ address }: { address: `0x${string}` }) {
           ? "Confirme na wallet..."
           : isConfirming
           ? "Confirmando (~400ms)..."
-          : "Resgatar 100 MERIT"}
+          : "Resgatar 500 MERIT"}
       </button>
 
       {hash && (

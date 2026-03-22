@@ -3,8 +3,11 @@
 import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useAccount } from "wagmi";
+import { formatEther } from "viem";
 import { ConnectButton } from "@rainbow-me/rainbowkit";
 import { useTheme } from "@/hooks/useTheme";
+import { useMeritBalance } from "@/hooks/useMeritCoin";
 
 const NAV_LINKS = [
   { href: "/", label: "Home" },
@@ -17,6 +20,8 @@ export function Header() {
   const pathname = usePathname();
   const [menuOpen, setMenuOpen] = useState(false);
   const { theme, toggleTheme } = useTheme();
+  const { address, isConnected } = useAccount();
+  const { data: meritBalance } = useMeritBalance(address);
 
   return (
     <header className="border-b border-border px-4 py-3 bg-bg/80 backdrop-blur-md sticky top-0 z-50">
@@ -24,11 +29,9 @@ export function Header() {
         <div className="flex items-center gap-6">
           {/* Logo */}
           <Link href="/" className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-full gradient-merit flex items-center justify-center">
-              <span className="text-bg font-bold text-sm">M</span>
-            </div>
+            <img src="/images/logo.png" alt="Empresta Ai" className="w-10 h-10 object-contain" />
             <span className="text-xl font-bold tracking-tight text-text-primary">
-              Merit<span className="text-primary">Coin</span>
+              Empresta <span className="text-primary">Ai</span>
             </span>
           </Link>
 
@@ -55,6 +58,13 @@ export function Header() {
         </div>
 
         <div className="flex items-center gap-3">
+          {/* MERIT balance */}
+          {isConnected && meritBalance !== undefined && (
+            <Link href="/profile" className="badge-merit text-xs font-tabular hidden sm:inline-flex">
+              {parseFloat(formatEther(meritBalance as bigint)).toFixed(0)} MERIT
+            </Link>
+          )}
+
           {/* Theme toggle */}
           <button
             onClick={toggleTheme}

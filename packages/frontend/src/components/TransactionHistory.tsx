@@ -13,6 +13,8 @@ const TYPE_LABELS: Record<TransactionRecord["type"], string> = {
   cancel_meetup: "Cancelar Meetup",
   approve: "Aprovar",
   stake: "Stake",
+  accept_bill: "Aceitar Conta",
+  dispute_bill: "Contestar Conta",
 };
 
 const TYPE_ICONS: Record<TransactionRecord["type"], string> = {
@@ -24,6 +26,8 @@ const TYPE_ICONS: Record<TransactionRecord["type"], string> = {
   cancel_meetup: "\u274C",
   approve: "\uD83D\uDD13",
   stake: "\uD83D\uDD12",
+  accept_bill: "\u2705",
+  dispute_bill: "\u26A0\uFE0F",
 };
 
 const STATUS_STYLES: Record<TransactionRecord["status"], string> = {

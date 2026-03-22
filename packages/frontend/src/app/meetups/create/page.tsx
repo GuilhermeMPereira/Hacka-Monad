@@ -268,8 +268,30 @@ function CreateMeetupForm() {
           </p>
         </div>
 
+        {/* Steps indicator when stake > 0 */}
+        {stakeAmount > 0n && (
+          <div className="flex items-center gap-3 py-2">
+            <div className={`flex items-center gap-2 ${hasEnoughAllowance ? "text-success" : "text-primary"}`}>
+              <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${hasEnoughAllowance ? "bg-success/20 text-success" : "bg-primary/20 text-primary"}`}>
+                {hasEnoughAllowance ? "✓" : "1"}
+              </div>
+              <span className="text-sm font-medium">Aprovar</span>
+            </div>
+            <div className="flex-1 h-px bg-border" />
+            <div className={`flex items-center gap-2 ${hasEnoughAllowance ? "text-primary" : "text-text-muted"}`}>
+              <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${hasEnoughAllowance ? "bg-primary/20 text-primary" : "bg-bg-elevated text-text-muted"}`}>
+                2
+              </div>
+              <span className="text-sm font-medium">Criar</span>
+            </div>
+          </div>
+        )}
+
         {stakeAmount > 0n && !hasEnoughAllowance ? (
-          <>
+          <div className="space-y-3">
+            <p className="text-sm text-text-secondary">
+              Etapa 1/2: Aprove o uso de {formatEther(stakeAmount)} MERIT como stake
+            </p>
             <button
               type="button"
               onClick={() => {
@@ -285,43 +307,48 @@ function CreateMeetupForm() {
                 : `Aprovar ${formatEther(stakeAmount)} MERIT`}
             </button>
             {approveMerit.hash && (
-              <div className="text-sm space-y-1">
-                <a
-                  href={`https://testnet.monad.xyz/tx/${approveMerit.hash}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-secondary hover:underline font-mono text-xs break-all"
-                >
-                  {approveMerit.hash}
-                </a>
-              </div>
+              <a
+                href={`https://testnet.monad.xyz/tx/${approveMerit.hash}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-secondary hover:underline font-mono text-xs break-all block"
+              >
+                {approveMerit.hash}
+              </a>
             )}
             {approveMerit.isSuccess && (
-              <p className="text-success text-sm">Aprovacao concedida!</p>
+              <p className="text-success text-sm">Aprovacao concedida! Agora clique em Criar Meetup.</p>
             )}
             {approveMerit.error && (
               <p className="text-error text-sm">
                 Erro: {approveMerit.error.message.slice(0, 100)}
               </p>
             )}
-          </>
+          </div>
         ) : (
-          <button
-            type="submit"
-            disabled={
-              isPending ||
-              isConfirming ||
-              !restaurantId ||
-              invitees.length === 0
-            }
-            className="btn-primary w-full disabled:opacity-40 disabled:cursor-not-allowed"
-          >
-            {isPending
-              ? "Confirme na wallet..."
-              : isConfirming
-              ? "Confirmando (~400ms)..."
-              : "Criar Meetup"}
-          </button>
+          <div className="space-y-3">
+            {stakeAmount > 0n && (
+              <p className="text-sm text-text-secondary">
+                Etapa 2/2: Crie o meetup (seu stake de {formatEther(stakeAmount)} MERIT sera depositado)
+              </p>
+            )}
+            <button
+              type="submit"
+              disabled={
+                isPending ||
+                isConfirming ||
+                !restaurantId ||
+                invitees.length === 0
+              }
+              className="btn-primary w-full disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              {isPending
+                ? "Confirme na wallet..."
+                : isConfirming
+                ? "Confirmando (~400ms)..."
+                : "Criar Meetup"}
+            </button>
+          </div>
         )}
       </form>
 

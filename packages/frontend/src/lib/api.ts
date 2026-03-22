@@ -8,6 +8,7 @@ export interface Restaurant {
   rating: number;
   acceptsCrypto: boolean;
   address: string;
+  walletAddress: string;
   city?: string;
   imageUrl?: string;
   description?: string;
@@ -42,6 +43,7 @@ const MOCK_RESTAURANTS: Restaurant[] = [
     rating: 4,
     acceptsCrypto: true,
     address: "Rua Augusta, 1200",
+    walletAddress: "0x1a2B3c4D5e6F7a8B9c0D1E2F3a4B5C6D7E8F9a0b",
     city: "Sao Paulo",
     imageUrl: "https://placehold.co/400x300?text=Boteco+do+Monad",
     description: "Boteco tradicional com petiscos e chopp gelado. Aceita pagamentos em MeritCoin.",
@@ -54,6 +56,7 @@ const MOCK_RESTAURANTS: Restaurant[] = [
     rating: 5,
     acceptsCrypto: true,
     address: "Rua Liberdade, 350",
+    walletAddress: "0x2B3c4D5e6F7a8B9c0D1E2F3a4B5C6D7E8F9a0b1C",
     city: "Sao Paulo",
     imageUrl: "https://placehold.co/400x300?text=Sushi+Nakamoto",
     description: "Sushi premium com ingredientes importados. Experiencia omakase unica.",
@@ -66,6 +69,7 @@ const MOCK_RESTAURANTS: Restaurant[] = [
     rating: 4,
     acceptsCrypto: true,
     address: "Av. Atlantica, 900",
+    walletAddress: "0x3C4d5E6f7A8b9C0d1e2F3A4b5c6D7e8F9A0B1c2D",
     city: "Rio de Janeiro",
     imageUrl: "https://placehold.co/400x300?text=Churrascaria+Genesis",
     description: "Rodizio completo com carnes nobres e buffet de saladas.",
@@ -78,6 +82,7 @@ const MOCK_RESTAURANTS: Restaurant[] = [
     rating: 5,
     acceptsCrypto: true,
     address: "Rua Braz Leme, 450",
+    walletAddress: "0x4D5e6F7a8B9c0D1E2f3A4B5c6d7E8f9a0B1C2d3E",
     city: "Sao Paulo",
     imageUrl: "https://placehold.co/400x300?text=Pizzaria+Consensus",
     description: "Pizzas artesanais assadas em forno a lenha. Massa de fermentacao natural.",
@@ -90,6 +95,7 @@ const MOCK_RESTAURANTS: Restaurant[] = [
     rating: 4,
     acceptsCrypto: true,
     address: "Rua Oscar Freire, 200",
+    walletAddress: "0x5E6f7A8b9C0d1E2F3a4B5c6D7e8F9a0B1c2D3e4F",
     city: "Sao Paulo",
     imageUrl: "https://placehold.co/400x300?text=Cafe+Validator",
     description: "Cafes especiais e brunchs elaborados em ambiente aconchegante.",
@@ -102,6 +108,7 @@ const MOCK_RESTAURANTS: Restaurant[] = [
     rating: 3,
     acceptsCrypto: true,
     address: "Rua da Consolacao, 1800",
+    walletAddress: "0x6F7a8B9c0D1e2F3A4b5C6d7E8f9A0b1C2D3e4F5a",
     city: "Sao Paulo",
     imageUrl: "https://placehold.co/400x300?text=Taqueria+Finality",
     description: "Tacos, burritos e nachos autenticos com toque brasileiro.",
@@ -114,6 +121,7 @@ const MOCK_RESTAURANTS: Restaurant[] = [
     rating: 5,
     acceptsCrypto: true,
     address: "Rua Garcia d'Avila, 150",
+    walletAddress: "0x7A8b9C0d1E2f3A4B5c6D7e8F9a0B1c2D3E4f5A6b",
     city: "Rio de Janeiro",
     imageUrl: "https://placehold.co/400x300?text=Bistro+Hash",
     description: "Culinaria francesa contemporanea com ingredientes locais selecionados.",

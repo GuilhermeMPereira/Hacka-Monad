@@ -36,7 +36,7 @@ export function useHasClaimed(address: `0x${string}` | undefined) {
     functionName: "hasClaimedFaucet",
     args: address ? [address] : undefined,
     chainId: monadTestnet.id,
-    query: { enabled: !!address },
+    query: { enabled: !!address, staleTime: 30_000 },
   });
 }
 
@@ -47,7 +47,7 @@ export function useMeritBalance(address: `0x${string}` | undefined) {
     functionName: "balanceOf",
     args: address ? [address] : undefined,
     chainId: monadTestnet.id,
-    query: { enabled: !!address },
+    query: { enabled: !!address, staleTime: 10_000 },
   });
 }
 
@@ -58,8 +58,31 @@ export function useReputation(address: `0x${string}` | undefined) {
     functionName: "getReputation",
     args: address ? [address] : undefined,
     chainId: monadTestnet.id,
-    query: { enabled: !!address },
+    query: { enabled: !!address, staleTime: 30_000 },
   });
+}
+
+export function useRequestMore() {
+  const {
+    writeContract,
+    data: hash,
+    isPending,
+    error,
+    reset,
+  } = useWriteContract();
+
+  const { isLoading: isConfirming, isSuccess } =
+    useWaitForTransactionReceipt({ hash });
+
+  function requestMore() {
+    writeContract({
+      address: MERITCOIN_ADDRESS,
+      abi: MERITCOIN_ABI,
+      functionName: "requestMore",
+    });
+  }
+
+  return { requestMore, hash, isPending, isConfirming, isSuccess, error, reset };
 }
 
 export function useApproveMerit() {
@@ -96,6 +119,6 @@ export function useAllowance(
     functionName: "allowance",
     args: owner && spender ? [owner, spender] : undefined,
     chainId: monadTestnet.id,
-    query: { enabled: !!owner && !!spender },
+    query: { enabled: !!owner && !!spender, staleTime: 10_000 },
   });
 }

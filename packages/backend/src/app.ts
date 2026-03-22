@@ -11,7 +11,7 @@ export async function buildApp() {
   const app = Fastify({ logger: true });
 
   await app.register(cors, {
-    origin: ["http://localhost:3000", "http://localhost:3001"],
+    origin: true,
   });
 
   await app.register(healthRoutes, { prefix: "/api" });

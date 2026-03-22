@@ -41,6 +41,17 @@ describe("MeetupManager", function () {
     };
   }
 
+  // Helper: build equal-split amounts array for N participants
+  function equalAmounts(total: bigint, count: number): bigint[] {
+    const base = total / BigInt(count);
+    const remainder = total - base * BigInt(count);
+    const amounts: bigint[] = [];
+    for (let i = 0; i < count; i++) {
+      amounts.push(i === 0 ? base + remainder : base);
+    }
+    return amounts;
+  }
+
   describe("createMeetup", function () {
     it("should create a meetup with a single invitee (backward compatible)", async function () {
       const { meetupManager, creator, invitee1 } =
@@ -317,7 +328,14 @@ describe("MeetupManager", function () {
       await meetupManager.connect(invitee2).confirmMeetup(1);
 
       const billAmount = hre.ethers.parseEther("90");
-      await meetupManager.connect(creator).registerBill(1, billAmount);
+      const amounts = [
+        hre.ethers.parseEther("30"),
+        hre.ethers.parseEther("30"),
+        hre.ethers.parseEther("30"),
+      ];
+      await meetupManager
+        .connect(creator)
+        .registerBill(1, billAmount, amounts);
 
       const meetup = await meetupManager.getMeetup(1);
       expect(meetup.billAmount).to.equal(billAmount);
@@ -340,7 +358,14 @@ describe("MeetupManager", function () {
       await meetupManager.connect(invitee2).confirmMeetup(1);
 
       const billAmount = hre.ethers.parseEther("90");
-      await meetupManager.connect(invitee1).registerBill(1, billAmount);
+      const amounts = [
+        hre.ethers.parseEther("30"),
+        hre.ethers.parseEther("30"),
+        hre.ethers.parseEther("30"),
+      ];
+      await meetupManager
+        .connect(invitee1)
+        .registerBill(1, billAmount, amounts);
 
       const meetup = await meetupManager.getMeetup(1);
       expect(meetup.billAmount).to.equal(billAmount);
@@ -363,8 +388,13 @@ describe("MeetupManager", function () {
       await meetupManager.connect(invitee2).confirmMeetup(1);
 
       const billAmount = hre.ethers.parseEther("90");
+      const amounts = [
+        hre.ethers.parseEther("30"),
+        hre.ethers.parseEther("30"),
+        hre.ethers.parseEther("30"),
+      ];
       await expect(
-        meetupManager.connect(creator).registerBill(1, billAmount)
+        meetupManager.connect(creator).registerBill(1, billAmount, amounts)
       )
         .to.emit(meetupManager, "BillRegistered")
         .withArgs(1n, creator.address, billAmount);
@@ -384,10 +414,15 @@ describe("MeetupManager", function () {
       await meetupManager.connect(invitee1).confirmMeetup(1);
       await meetupManager.connect(invitee2).confirmMeetup(1);
 
+      const amounts = [
+        hre.ethers.parseEther("30"),
+        hre.ethers.parseEther("30"),
+        hre.ethers.parseEther("30"),
+      ];
       await expect(
         meetupManager
           .connect(outsider)
-          .registerBill(1, hre.ethers.parseEther("90"))
+          .registerBill(1, hre.ethers.parseEther("90"), amounts)
       ).to.be.revertedWith("Not a participant");
     });
 
@@ -399,11 +434,432 @@ describe("MeetupManager", function () {
         .connect(creator)
         .createMeetup([invitee1.address], "restaurant-1", 0);
 
+      const amounts = [
+        hre.ethers.parseEther("25"),
+        hre.ethers.parseEther("25"),
+      ];
       await expect(
         meetupManager
           .connect(creator)
-          .registerBill(1, hre.ethers.parseEther("50"))
-      ).to.be.revertedWith("Not confirmed");
+          .registerBill(1, hre.ethers.parseEther("50"), amounts)
+      ).to.be.revertedWith("Not confirmed or disputed");
+    });
+  });
+
+  describe("registerBill with individual amounts", function () {
+    it("should register with equal amounts", async function () {
+      const { meetupManager, creator, invitee1 } =
+        await loadFixture(deployFixture);
+
+      await meetupManager
+        .connect(creator)
+        .createMeetup([invitee1.address], "restaurant-1", 0);
+      await meetupManager.connect(invitee1).confirmMeetup(1);
+
+      const billAmount = hre.ethers.parseEther("100");
+      const amounts = [
+        hre.ethers.parseEther("50"),
+        hre.ethers.parseEther("50"),
+      ];
+      await meetupManager
+        .connect(creator)
+        .registerBill(1, billAmount, amounts);
+
+      expect(
+        await meetupManager.getIndividualAmount(1, creator.address)
+      ).to.equal(hre.ethers.parseEther("50"));
+      expect(
+        await meetupManager.getIndividualAmount(1, invitee1.address)
+      ).to.equal(hre.ethers.parseEther("50"));
+    });
+
+    it("should register with unequal amounts", async function () {
+      const { meetupManager, creator, invitee1 } =
+        await loadFixture(deployFixture);
+
+      await meetupManager
+        .connect(creator)
+        .createMeetup([invitee1.address], "restaurant-1", 0);
+      await meetupManager.connect(invitee1).confirmMeetup(1);
+
+      const billAmount = hre.ethers.parseEther("100");
+      const amounts = [
+        hre.ethers.parseEther("70"),
+        hre.ethers.parseEther("30"),
+      ];
+      await meetupManager
+        .connect(creator)
+        .registerBill(1, billAmount, amounts);
+
+      expect(
+        await meetupManager.getIndividualAmount(1, creator.address)
+      ).to.equal(hre.ethers.parseEther("70"));
+      expect(
+        await meetupManager.getIndividualAmount(1, invitee1.address)
+      ).to.equal(hre.ethers.parseEther("30"));
+    });
+
+    it("should revert if amounts length doesn't match participants", async function () {
+      const { meetupManager, creator, invitee1 } =
+        await loadFixture(deployFixture);
+
+      await meetupManager
+        .connect(creator)
+        .createMeetup([invitee1.address], "restaurant-1", 0);
+      await meetupManager.connect(invitee1).confirmMeetup(1);
+
+      // 2 participants but 3 amounts
+      const amounts = [
+        hre.ethers.parseEther("30"),
+        hre.ethers.parseEther("30"),
+        hre.ethers.parseEther("30"),
+      ];
+      await expect(
+        meetupManager
+          .connect(creator)
+          .registerBill(1, hre.ethers.parseEther("90"), amounts)
+      ).to.be.revertedWith("Amounts length mismatch");
+    });
+
+    it("should revert if amounts sum doesn't equal total", async function () {
+      const { meetupManager, creator, invitee1 } =
+        await loadFixture(deployFixture);
+
+      await meetupManager
+        .connect(creator)
+        .createMeetup([invitee1.address], "restaurant-1", 0);
+      await meetupManager.connect(invitee1).confirmMeetup(1);
+
+      const amounts = [
+        hre.ethers.parseEther("40"),
+        hre.ethers.parseEther("40"),
+      ];
+      await expect(
+        meetupManager
+          .connect(creator)
+          .registerBill(1, hre.ethers.parseEther("100"), amounts)
+      ).to.be.revertedWith("Amounts sum mismatch");
+    });
+
+    it("should auto-accept for bill registerer", async function () {
+      const { meetupManager, creator, invitee1 } =
+        await loadFixture(deployFixture);
+
+      await meetupManager
+        .connect(creator)
+        .createMeetup([invitee1.address], "restaurant-1", 0);
+      await meetupManager.connect(invitee1).confirmMeetup(1);
+
+      const billAmount = hre.ethers.parseEther("100");
+      const amounts = [
+        hre.ethers.parseEther("50"),
+        hre.ethers.parseEther("50"),
+      ];
+      await meetupManager
+        .connect(creator)
+        .registerBill(1, billAmount, amounts);
+
+      expect(await meetupManager.hasAccepted(1, creator.address)).to.equal(
+        true
+      );
+      expect(await meetupManager.hasAccepted(1, invitee1.address)).to.equal(
+        false
+      );
+      expect(await meetupManager.getAcceptedCount(1)).to.equal(1n);
+    });
+
+    it("should allow re-registration when Disputed (reset acceptances)", async function () {
+      const { meetupManager, creator, invitee1 } =
+        await loadFixture(deployFixture);
+
+      await meetupManager
+        .connect(creator)
+        .createMeetup([invitee1.address], "restaurant-1", 0);
+      await meetupManager.connect(invitee1).confirmMeetup(1);
+
+      // First registration
+      const billAmount = hre.ethers.parseEther("100");
+      const amounts1 = [
+        hre.ethers.parseEther("50"),
+        hre.ethers.parseEther("50"),
+      ];
+      await meetupManager
+        .connect(creator)
+        .registerBill(1, billAmount, amounts1);
+
+      // Invitee disputes
+      await meetupManager.connect(invitee1).disputeBill(1);
+
+      const meetupAfterDispute = await meetupManager.getMeetup(1);
+      expect(meetupAfterDispute.status).to.equal(3n); // Disputed
+
+      // Re-register with new amounts
+      const amounts2 = [
+        hre.ethers.parseEther("60"),
+        hre.ethers.parseEther("40"),
+      ];
+      await meetupManager
+        .connect(creator)
+        .registerBill(1, billAmount, amounts2);
+
+      const meetupAfterReregister = await meetupManager.getMeetup(1);
+      expect(meetupAfterReregister.status).to.equal(2n); // BillRegistered
+
+      // Host auto-accepted, invitee reset
+      expect(await meetupManager.hasAccepted(1, creator.address)).to.equal(
+        true
+      );
+      expect(await meetupManager.hasAccepted(1, invitee1.address)).to.equal(
+        false
+      );
+      expect(await meetupManager.getAcceptedCount(1)).to.equal(1n);
+
+      // Verify new individual amounts
+      expect(
+        await meetupManager.getIndividualAmount(1, creator.address)
+      ).to.equal(hre.ethers.parseEther("60"));
+      expect(
+        await meetupManager.getIndividualAmount(1, invitee1.address)
+      ).to.equal(hre.ethers.parseEther("40"));
+    });
+  });
+
+  describe("acceptBill", function () {
+    it("should accept bill as participant", async function () {
+      const { meetupManager, creator, invitee1 } =
+        await loadFixture(deployFixture);
+
+      await meetupManager
+        .connect(creator)
+        .createMeetup([invitee1.address], "restaurant-1", 0);
+      await meetupManager.connect(invitee1).confirmMeetup(1);
+
+      const billAmount = hre.ethers.parseEther("100");
+      const amounts = [
+        hre.ethers.parseEther("50"),
+        hre.ethers.parseEther("50"),
+      ];
+      await meetupManager
+        .connect(creator)
+        .registerBill(1, billAmount, amounts);
+
+      await meetupManager.connect(invitee1).acceptBill(1);
+
+      expect(await meetupManager.hasAccepted(1, invitee1.address)).to.equal(
+        true
+      );
+      expect(await meetupManager.getAcceptedCount(1)).to.equal(2n);
+    });
+
+    it("should emit BillAccepted event", async function () {
+      const { meetupManager, creator, invitee1 } =
+        await loadFixture(deployFixture);
+
+      await meetupManager
+        .connect(creator)
+        .createMeetup([invitee1.address], "restaurant-1", 0);
+      await meetupManager.connect(invitee1).confirmMeetup(1);
+
+      const billAmount = hre.ethers.parseEther("100");
+      const amounts = [
+        hre.ethers.parseEther("50"),
+        hre.ethers.parseEther("50"),
+      ];
+      await meetupManager
+        .connect(creator)
+        .registerBill(1, billAmount, amounts);
+
+      await expect(meetupManager.connect(invitee1).acceptBill(1))
+        .to.emit(meetupManager, "BillAccepted")
+        .withArgs(1n, invitee1.address);
+    });
+
+    it("should revert if already accepted", async function () {
+      const { meetupManager, creator, invitee1 } =
+        await loadFixture(deployFixture);
+
+      await meetupManager
+        .connect(creator)
+        .createMeetup([invitee1.address], "restaurant-1", 0);
+      await meetupManager.connect(invitee1).confirmMeetup(1);
+
+      const billAmount = hre.ethers.parseEther("100");
+      const amounts = [
+        hre.ethers.parseEther("50"),
+        hre.ethers.parseEther("50"),
+      ];
+      await meetupManager
+        .connect(creator)
+        .registerBill(1, billAmount, amounts);
+
+      await meetupManager.connect(invitee1).acceptBill(1);
+
+      await expect(
+        meetupManager.connect(invitee1).acceptBill(1)
+      ).to.be.revertedWith("Already accepted");
+    });
+
+    it("should revert if not participant", async function () {
+      const { meetupManager, creator, invitee1, outsider } =
+        await loadFixture(deployFixture);
+
+      await meetupManager
+        .connect(creator)
+        .createMeetup([invitee1.address], "restaurant-1", 0);
+      await meetupManager.connect(invitee1).confirmMeetup(1);
+
+      const billAmount = hre.ethers.parseEther("100");
+      const amounts = [
+        hre.ethers.parseEther("50"),
+        hre.ethers.parseEther("50"),
+      ];
+      await meetupManager
+        .connect(creator)
+        .registerBill(1, billAmount, amounts);
+
+      await expect(
+        meetupManager.connect(outsider).acceptBill(1)
+      ).to.be.revertedWith("Not a participant");
+    });
+
+    it("should revert if not BillRegistered", async function () {
+      const { meetupManager, creator, invitee1 } =
+        await loadFixture(deployFixture);
+
+      await meetupManager
+        .connect(creator)
+        .createMeetup([invitee1.address], "restaurant-1", 0);
+      await meetupManager.connect(invitee1).confirmMeetup(1);
+
+      // Status is Confirmed, not BillRegistered
+      await expect(
+        meetupManager.connect(invitee1).acceptBill(1)
+      ).to.be.revertedWith("Bill not registered");
+    });
+  });
+
+  describe("disputeBill", function () {
+    it("should change status to Disputed", async function () {
+      const { meetupManager, creator, invitee1 } =
+        await loadFixture(deployFixture);
+
+      await meetupManager
+        .connect(creator)
+        .createMeetup([invitee1.address], "restaurant-1", 0);
+      await meetupManager.connect(invitee1).confirmMeetup(1);
+
+      const billAmount = hre.ethers.parseEther("100");
+      const amounts = [
+        hre.ethers.parseEther("50"),
+        hre.ethers.parseEther("50"),
+      ];
+      await meetupManager
+        .connect(creator)
+        .registerBill(1, billAmount, amounts);
+
+      await meetupManager.connect(invitee1).disputeBill(1);
+
+      const meetup = await meetupManager.getMeetup(1);
+      expect(meetup.status).to.equal(3n); // Disputed
+    });
+
+    it("should emit BillDisputed event", async function () {
+      const { meetupManager, creator, invitee1 } =
+        await loadFixture(deployFixture);
+
+      await meetupManager
+        .connect(creator)
+        .createMeetup([invitee1.address], "restaurant-1", 0);
+      await meetupManager.connect(invitee1).confirmMeetup(1);
+
+      const billAmount = hre.ethers.parseEther("100");
+      const amounts = [
+        hre.ethers.parseEther("50"),
+        hre.ethers.parseEther("50"),
+      ];
+      await meetupManager
+        .connect(creator)
+        .registerBill(1, billAmount, amounts);
+
+      await expect(meetupManager.connect(invitee1).disputeBill(1))
+        .to.emit(meetupManager, "BillDisputed")
+        .withArgs(1n, invitee1.address);
+    });
+
+    it("should revert if called by bill registerer", async function () {
+      const { meetupManager, creator, invitee1 } =
+        await loadFixture(deployFixture);
+
+      await meetupManager
+        .connect(creator)
+        .createMeetup([invitee1.address], "restaurant-1", 0);
+      await meetupManager.connect(invitee1).confirmMeetup(1);
+
+      const billAmount = hre.ethers.parseEther("100");
+      const amounts = [
+        hre.ethers.parseEther("50"),
+        hre.ethers.parseEther("50"),
+      ];
+      await meetupManager
+        .connect(creator)
+        .registerBill(1, billAmount, amounts);
+
+      await expect(
+        meetupManager.connect(creator).disputeBill(1)
+      ).to.be.revertedWith("Bill registerer cannot dispute");
+    });
+
+    it("should revert if not BillRegistered", async function () {
+      const { meetupManager, creator, invitee1 } =
+        await loadFixture(deployFixture);
+
+      await meetupManager
+        .connect(creator)
+        .createMeetup([invitee1.address], "restaurant-1", 0);
+      await meetupManager.connect(invitee1).confirmMeetup(1);
+
+      // Status is Confirmed, not BillRegistered
+      await expect(
+        meetupManager.connect(invitee1).disputeBill(1)
+      ).to.be.revertedWith("Bill not registered");
+    });
+
+    it("should allow re-registration after dispute", async function () {
+      const { meetupManager, creator, invitee1 } =
+        await loadFixture(deployFixture);
+
+      await meetupManager
+        .connect(creator)
+        .createMeetup([invitee1.address], "restaurant-1", 0);
+      await meetupManager.connect(invitee1).confirmMeetup(1);
+
+      // Register, dispute, re-register
+      const billAmount = hre.ethers.parseEther("100");
+      await meetupManager
+        .connect(creator)
+        .registerBill(1, billAmount, [
+          hre.ethers.parseEther("50"),
+          hre.ethers.parseEther("50"),
+        ]);
+
+      await meetupManager.connect(invitee1).disputeBill(1);
+
+      // Re-register with different amounts
+      await meetupManager
+        .connect(creator)
+        .registerBill(1, billAmount, [
+          hre.ethers.parseEther("40"),
+          hre.ethers.parseEther("60"),
+        ]);
+
+      const meetup = await meetupManager.getMeetup(1);
+      expect(meetup.status).to.equal(2n); // BillRegistered again
+      expect(
+        await meetupManager.getIndividualAmount(1, creator.address)
+      ).to.equal(hre.ethers.parseEther("40"));
+      expect(
+        await meetupManager.getIndividualAmount(1, invitee1.address)
+      ).to.equal(hre.ethers.parseEther("60"));
     });
   });
 
@@ -423,7 +879,15 @@ describe("MeetupManager", function () {
       await meetupManager.connect(invitee2).confirmMeetup(1);
 
       const billAmount = hre.ethers.parseEther("90");
-      await meetupManager.connect(creator).registerBill(1, billAmount);
+      const splitAmount = hre.ethers.parseEther("30");
+      const amounts = [splitAmount, splitAmount, splitAmount];
+      await meetupManager
+        .connect(creator)
+        .registerBill(1, billAmount, amounts);
+
+      // All participants must accept
+      await meetupManager.connect(invitee1).acceptBill(1);
+      await meetupManager.connect(invitee2).acceptBill(1);
 
       const creatorBefore = await meritCoin.balanceOf(creator.address);
       const invitee1Before = await meritCoin.balanceOf(invitee1.address);
@@ -431,21 +895,20 @@ describe("MeetupManager", function () {
 
       await meetupManager.connect(invitee1).settleBill(1);
 
-      const splitAmount = billAmount / 3n;
       const creatorAfter = await meritCoin.balanceOf(creator.address);
       const invitee1After = await meritCoin.balanceOf(invitee1.address);
       const invitee2After = await meritCoin.balanceOf(invitee2.address);
 
-      // Creator paid the bill: invitee1 and invitee2 pay creator
+      // Creator paid the bill: invitee1 and invitee2 pay creator their individual amounts
       expect(invitee1After).to.equal(invitee1Before - splitAmount);
       expect(invitee2After).to.equal(invitee2Before - splitAmount);
       expect(creatorAfter).to.equal(creatorBefore + splitAmount * 2n);
 
       const meetup = await meetupManager.getMeetup(1);
-      expect(meetup.status).to.equal(3n); // Settled
+      expect(meetup.status).to.equal(4n); // Settled
     });
 
-    it("should work with single invitee (backward compatible, split by 2)", async function () {
+    it("should work with single invitee (split by 2)", async function () {
       const { meritCoin, meetupManager, creator, invitee1 } =
         await loadFixture(deployFixture);
 
@@ -455,14 +918,20 @@ describe("MeetupManager", function () {
       await meetupManager.connect(invitee1).confirmMeetup(1);
 
       const billAmount = hre.ethers.parseEther("50");
-      await meetupManager.connect(creator).registerBill(1, billAmount);
+      const splitAmount = hre.ethers.parseEther("25");
+      const amounts = [splitAmount, splitAmount];
+      await meetupManager
+        .connect(creator)
+        .registerBill(1, billAmount, amounts);
+
+      // Invitee must accept
+      await meetupManager.connect(invitee1).acceptBill(1);
 
       const creatorBefore = await meritCoin.balanceOf(creator.address);
       const inviteeBefore = await meritCoin.balanceOf(invitee1.address);
 
       await meetupManager.connect(invitee1).settleBill(1);
 
-      const splitAmount = billAmount / 2n;
       const creatorAfter = await meritCoin.balanceOf(creator.address);
       const inviteeAfter = await meritCoin.balanceOf(invitee1.address);
 
@@ -486,8 +955,16 @@ describe("MeetupManager", function () {
       await meetupManager.connect(invitee2).confirmMeetup(1);
 
       const billAmount = hre.ethers.parseEther("90");
+      const splitAmount = hre.ethers.parseEther("30");
+      const amounts = [splitAmount, splitAmount, splitAmount];
       // invitee1 registers the bill (is the payer)
-      await meetupManager.connect(invitee1).registerBill(1, billAmount);
+      await meetupManager
+        .connect(invitee1)
+        .registerBill(1, billAmount, amounts);
+
+      // All participants must accept
+      await meetupManager.connect(creator).acceptBill(1);
+      await meetupManager.connect(invitee2).acceptBill(1);
 
       const creatorBefore = await meritCoin.balanceOf(creator.address);
       const invitee1Before = await meritCoin.balanceOf(invitee1.address);
@@ -495,7 +972,6 @@ describe("MeetupManager", function () {
 
       await meetupManager.connect(creator).settleBill(1);
 
-      const splitAmount = billAmount / 3n;
       const creatorAfter = await meritCoin.balanceOf(creator.address);
       const invitee1After = await meritCoin.balanceOf(invitee1.address);
       const invitee2After = await meritCoin.balanceOf(invitee2.address);
@@ -521,7 +997,16 @@ describe("MeetupManager", function () {
       await meetupManager.connect(invitee2).confirmMeetup(1);
 
       const billAmount = hre.ethers.parseEther("90");
-      await meetupManager.connect(creator).registerBill(1, billAmount);
+      const splitAmount = hre.ethers.parseEther("30");
+      const amounts = [splitAmount, splitAmount, splitAmount];
+      await meetupManager
+        .connect(creator)
+        .registerBill(1, billAmount, amounts);
+
+      // All must accept
+      await meetupManager.connect(invitee1).acceptBill(1);
+      await meetupManager.connect(invitee2).acceptBill(1);
+
       await meetupManager.connect(creator).settleBill(1);
 
       // Creator paid the bill -> invitee1 and invitee2 are debtors
@@ -544,7 +1029,7 @@ describe("MeetupManager", function () {
       expect(creatorReceived).to.equal(2n); // received from 2 debtors
     });
 
-    it("should emit BillSettled with correct splitAmount and participants", async function () {
+    it("should emit BillSettled with correct totalAmount and participants", async function () {
       const { meetupManager, creator, invitee1, invitee2 } =
         await loadFixture(deployFixture);
 
@@ -559,12 +1044,19 @@ describe("MeetupManager", function () {
       await meetupManager.connect(invitee2).confirmMeetup(1);
 
       const billAmount = hre.ethers.parseEther("90");
-      await meetupManager.connect(creator).registerBill(1, billAmount);
+      const splitAmount = hre.ethers.parseEther("30");
+      const amounts = [splitAmount, splitAmount, splitAmount];
+      await meetupManager
+        .connect(creator)
+        .registerBill(1, billAmount, amounts);
 
-      const splitAmount = billAmount / 3n;
+      // All must accept
+      await meetupManager.connect(invitee1).acceptBill(1);
+      await meetupManager.connect(invitee2).acceptBill(1);
+
       await expect(meetupManager.connect(creator).settleBill(1))
         .to.emit(meetupManager, "BillSettled")
-        .withArgs(1n, splitAmount, 3n);
+        .withArgs(1n, billAmount, 3n);
     });
 
     it("should revert if bill is not registered", async function () {
@@ -579,6 +1071,103 @@ describe("MeetupManager", function () {
       await expect(
         meetupManager.connect(creator).settleBill(1)
       ).to.be.revertedWith("Bill not registered");
+    });
+  });
+
+  describe("settleBill with individual amounts", function () {
+    it("should transfer individual amounts (not equal split)", async function () {
+      const { meritCoin, meetupManager, creator, invitee1 } =
+        await loadFixture(deployFixture);
+
+      await meetupManager
+        .connect(creator)
+        .createMeetup([invitee1.address], "restaurant-1", 0);
+      await meetupManager.connect(invitee1).confirmMeetup(1);
+
+      const billAmount = hre.ethers.parseEther("100");
+      // Creator's share is 70, invitee's share is 30
+      const amounts = [
+        hre.ethers.parseEther("70"),
+        hre.ethers.parseEther("30"),
+      ];
+      await meetupManager
+        .connect(creator)
+        .registerBill(1, billAmount, amounts);
+
+      // Invitee must accept
+      await meetupManager.connect(invitee1).acceptBill(1);
+
+      const creatorBefore = await meritCoin.balanceOf(creator.address);
+      const inviteeBefore = await meritCoin.balanceOf(invitee1.address);
+
+      await meetupManager.connect(creator).settleBill(1);
+
+      const creatorAfter = await meritCoin.balanceOf(creator.address);
+      const inviteeAfter = await meritCoin.balanceOf(invitee1.address);
+
+      // Creator is billPayer, invitee pays their individual amount (30)
+      expect(inviteeAfter).to.equal(
+        inviteeBefore - hre.ethers.parseEther("30")
+      );
+      expect(creatorAfter).to.equal(
+        creatorBefore + hre.ethers.parseEther("30")
+      );
+    });
+
+    it("should require all participants to have accepted", async function () {
+      const { meetupManager, creator, invitee1, invitee2 } =
+        await loadFixture(deployFixture);
+
+      await meetupManager
+        .connect(creator)
+        .createMeetup(
+          [invitee1.address, invitee2.address],
+          "restaurant-1",
+          0
+        );
+      await meetupManager.connect(invitee1).confirmMeetup(1);
+      await meetupManager.connect(invitee2).confirmMeetup(1);
+
+      const billAmount = hre.ethers.parseEther("90");
+      const amounts = [
+        hre.ethers.parseEther("30"),
+        hre.ethers.parseEther("30"),
+        hre.ethers.parseEther("30"),
+      ];
+      await meetupManager
+        .connect(creator)
+        .registerBill(1, billAmount, amounts);
+
+      // Only invitee1 accepts, invitee2 doesn't
+      await meetupManager.connect(invitee1).acceptBill(1);
+
+      await expect(
+        meetupManager.connect(creator).settleBill(1)
+      ).to.be.revertedWith("Not all participants accepted");
+    });
+
+    it("should revert if not all accepted", async function () {
+      const { meetupManager, creator, invitee1 } =
+        await loadFixture(deployFixture);
+
+      await meetupManager
+        .connect(creator)
+        .createMeetup([invitee1.address], "restaurant-1", 0);
+      await meetupManager.connect(invitee1).confirmMeetup(1);
+
+      const billAmount = hre.ethers.parseEther("100");
+      const amounts = [
+        hre.ethers.parseEther("50"),
+        hre.ethers.parseEther("50"),
+      ];
+      await meetupManager
+        .connect(creator)
+        .registerBill(1, billAmount, amounts);
+
+      // Creator auto-accepted but invitee1 hasn't accepted
+      await expect(
+        meetupManager.connect(creator).settleBill(1)
+      ).to.be.revertedWith("Not all participants accepted");
     });
   });
 
@@ -597,7 +1186,7 @@ describe("MeetupManager", function () {
       await meetupManager.connect(creator).cancelMeetup(1);
 
       const meetup = await meetupManager.getMeetup(1);
-      expect(meetup.status).to.equal(4n); // Cancelled
+      expect(meetup.status).to.equal(5n); // Cancelled
     });
 
     it("should emit MeetupCancelled event", async function () {
@@ -634,7 +1223,18 @@ describe("MeetupManager", function () {
         .connect(creator)
         .createMeetup([invitee1.address], "restaurant-1", 0);
       await meetupManager.connect(invitee1).confirmMeetup(1);
-      await meetupManager.connect(creator).registerBill(1, hre.ethers.parseEther("50"));
+
+      const billAmount = hre.ethers.parseEther("50");
+      const amounts = [
+        hre.ethers.parseEther("25"),
+        hre.ethers.parseEther("25"),
+      ];
+      await meetupManager
+        .connect(creator)
+        .registerBill(1, billAmount, amounts);
+
+      // Accept and settle
+      await meetupManager.connect(invitee1).acceptBill(1);
       await meetupManager.connect(creator).settleBill(1);
 
       await expect(
@@ -720,7 +1320,6 @@ describe("MeetupManager", function () {
 
   describe("Stake/Escrow", function () {
     const STAKE_AMOUNT = hre.ethers.parseEther("5");
-    const FAUCET_AMOUNT = hre.ethers.parseEther("100");
 
     it("should create meetup with stake and transfer creator's stake", async function () {
       const { meritCoin, meetupManager, creator, invitee1 } =
@@ -784,7 +1383,15 @@ describe("MeetupManager", function () {
       await meetupManager.connect(invitee2).confirmMeetup(1);
 
       const billAmount = hre.ethers.parseEther("30");
-      await meetupManager.connect(creator).registerBill(1, billAmount);
+      const splitAmount = hre.ethers.parseEther("10");
+      const amounts = [splitAmount, splitAmount, splitAmount];
+      await meetupManager
+        .connect(creator)
+        .registerBill(1, billAmount, amounts);
+
+      // All must accept
+      await meetupManager.connect(invitee1).acceptBill(1);
+      await meetupManager.connect(invitee2).acceptBill(1);
 
       // All participants have approved and have balances, so all stakes should be returned
       const creatorBefore = await meritCoin.balanceOf(creator.address);
@@ -793,7 +1400,6 @@ describe("MeetupManager", function () {
 
       await meetupManager.connect(creator).settleBill(1);
 
-      const splitAmount = billAmount / 3n;
       const creatorAfter = await meritCoin.balanceOf(creator.address);
       const invitee1After = await meritCoin.balanceOf(invitee1.address);
       const invitee2After = await meritCoin.balanceOf(invitee2.address);
@@ -820,7 +1426,14 @@ describe("MeetupManager", function () {
       await meetupManager.connect(invitee1).confirmMeetup(1);
 
       const billAmount = hre.ethers.parseEther("50");
-      await meetupManager.connect(creator).registerBill(1, billAmount);
+      const splitAmount = hre.ethers.parseEther("25");
+      const amounts = [splitAmount, splitAmount];
+      await meetupManager
+        .connect(creator)
+        .registerBill(1, billAmount, amounts);
+
+      // Invitee must accept before we can settle
+      await meetupManager.connect(invitee1).acceptBill(1);
 
       // Revoke invitee1's approval so they cannot pay the split
       const managerAddress = await meetupManager.getAddress();
@@ -894,7 +1507,7 @@ describe("MeetupManager", function () {
       expect(await meritCoin.balanceOf(managerAddress)).to.equal(0n);
 
       const meetup = await meetupManager.getMeetup(1);
-      expect(meetup.status).to.equal(4n); // Cancelled
+      expect(meetup.status).to.equal(5n); // Cancelled
     });
 
     it("should work with stakeAmount = 0 (backward compatible)", async function () {
@@ -907,14 +1520,20 @@ describe("MeetupManager", function () {
       await meetupManager.connect(invitee1).confirmMeetup(1);
 
       const billAmount = hre.ethers.parseEther("50");
-      await meetupManager.connect(creator).registerBill(1, billAmount);
+      const splitAmount = hre.ethers.parseEther("25");
+      const amounts = [splitAmount, splitAmount];
+      await meetupManager
+        .connect(creator)
+        .registerBill(1, billAmount, amounts);
+
+      // Accept
+      await meetupManager.connect(invitee1).acceptBill(1);
 
       const creatorBefore = await meritCoin.balanceOf(creator.address);
       const inviteeBefore = await meritCoin.balanceOf(invitee1.address);
 
       await meetupManager.connect(invitee1).settleBill(1);
 
-      const splitAmount = billAmount / 2n;
       const creatorAfter = await meritCoin.balanceOf(creator.address);
       const inviteeAfter = await meritCoin.balanceOf(invitee1.address);
 
@@ -955,7 +1574,14 @@ describe("MeetupManager", function () {
       await meetupManager.connect(invitee1).confirmMeetup(1);
 
       const billAmount = hre.ethers.parseEther("20");
-      await meetupManager.connect(creator).registerBill(1, billAmount);
+      const splitAmount = hre.ethers.parseEther("10");
+      const amounts = [splitAmount, splitAmount];
+      await meetupManager
+        .connect(creator)
+        .registerBill(1, billAmount, amounts);
+
+      // Accept
+      await meetupManager.connect(invitee1).acceptBill(1);
 
       // Both participants can pay, so both stakes returned
       const tx = meetupManager.connect(creator).settleBill(1);
@@ -979,7 +1605,14 @@ describe("MeetupManager", function () {
       await meetupManager.connect(invitee1).confirmMeetup(1);
 
       const billAmount = hre.ethers.parseEther("50");
-      await meetupManager.connect(creator).registerBill(1, billAmount);
+      const splitAmount = hre.ethers.parseEther("25");
+      const amounts = [splitAmount, splitAmount];
+      await meetupManager
+        .connect(creator)
+        .registerBill(1, billAmount, amounts);
+
+      // Accept
+      await meetupManager.connect(invitee1).acceptBill(1);
 
       // Revoke invitee1's approval
       const managerAddress = await meetupManager.getAddress();

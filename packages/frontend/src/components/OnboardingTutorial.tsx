@@ -17,7 +17,7 @@ interface StepConfig {
 const STEPS: StepConfig[] = [
   {
     title: "Conecte sua Wallet",
-    description: "Conecte sua MetaMask para comecar a usar o MeritCoin",
+    description: "Conecte sua MetaMask para comecar a usar o Empresta Ai",
     icon: (
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         <rect x="2" y="6" width="20" height="14" rx="2" />
@@ -28,7 +28,7 @@ const STEPS: StepConfig[] = [
   },
   {
     title: "Resgate seus MeritCoins",
-    description: "Resgate 100 MERIT gratuitos do faucet para comecar",
+    description: "Resgate 500 MERIT gratuitos do faucet para comecar",
     icon: (
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         <circle cx="12" cy="12" r="10" />
@@ -121,7 +121,7 @@ export function OnboardingTutorial() {
           </svg>
         </div>
         <h2 className="text-xl font-semibold text-text-primary">
-          Parabens! Voce esta pronto para usar o MeritCoin!
+          Parabens! Voce esta pronto para usar o Empresta Ai!
         </h2>
         <p className="text-text-secondary text-sm">
           Todos os passos foram concluidos. Aproveite a plataforma!
@@ -236,7 +236,7 @@ export function OnboardingTutorial() {
                                 ? "Confirme na wallet..."
                                 : isFaucetConfirming
                                 ? "Confirmando..."
-                                : "Resgatar 100 MERIT"}
+                                : "Resgatar 500 MERIT"}
                             </button>
                             {faucetHash && (
                               <a

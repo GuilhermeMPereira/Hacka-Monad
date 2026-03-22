@@ -13,8 +13,9 @@ const MEETUP_STATUS_MAP: Record<number, string> = {
   0: "Pending",
   1: "Confirmed",
   2: "BillRegistered",
-  3: "Settled",
-  4: "Cancelled",
+  3: "Disputed",
+  4: "Settled",
+  5: "Cancelled",
 };
 
 function formatMeetup(meetup: {
@@ -26,6 +27,7 @@ function formatMeetup(meetup: {
   billAmount: bigint;
   billPayer: string;
   createdAt: bigint;
+  stakeAmount: bigint;
 }) {
   return {
     id: meetup.id.toString(),
@@ -36,6 +38,7 @@ function formatMeetup(meetup: {
     billAmount: formatEther(meetup.billAmount),
     billPayer: meetup.billPayer,
     createdAt: meetup.createdAt.toString(),
+    stakeAmount: formatEther(meetup.stakeAmount),
   };
 }
 

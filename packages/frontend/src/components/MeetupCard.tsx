@@ -8,16 +8,18 @@ const STATUS_LABELS: Record<number, string> = {
   0: "Pendente",
   1: "Confirmado",
   2: "Conta Registrada",
-  3: "Liquidado",
-  4: "Cancelado",
+  3: "Contestado",
+  4: "Liquidado",
+  5: "Cancelado",
 };
 
 const STATUS_COLORS: Record<number, string> = {
   0: "text-warning",
   1: "text-secondary",
   2: "text-primary",
-  3: "text-success",
-  4: "text-error",
+  3: "text-error",
+  4: "text-success",
+  5: "text-text-muted",
 };
 
 interface MeetupCardProps {

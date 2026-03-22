@@ -17,9 +17,9 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "MeritCoin — Encontros Crypto, Contas Divididas",
+  title: "Empresta Ai — Encontros Crypto, Contas Divididas",
   description:
-    "Conecte-se com entusiastas crypto, descubra restaurantes que aceitam Bitcoin e divida contas com MeritCoins.",
+    "Conecte-se com amigos, descubra restaurantes e divida contas de forma justa com MERIT na Monad.",
 };
 
 export default function RootLayout({

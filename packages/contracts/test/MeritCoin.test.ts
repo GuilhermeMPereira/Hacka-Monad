@@ -29,16 +29,16 @@ describe("MeritCoin", function () {
   });
 
   describe("faucet", function () {
-    it("should give 100 MERIT to caller", async function () {
+    it("should give 500 MERIT to caller", async function () {
       const { meritCoin, user1 } = await loadFixture(deployFixture);
       await meritCoin.connect(user1).faucet();
-      const expected = hre.ethers.parseEther("100");
+      const expected = hre.ethers.parseEther("500");
       expect(await meritCoin.balanceOf(user1.address)).to.equal(expected);
     });
 
     it("should emit FaucetClaim event", async function () {
       const { meritCoin, user1 } = await loadFixture(deployFixture);
-      const expected = hre.ethers.parseEther("100");
+      const expected = hre.ethers.parseEther("500");
       await expect(meritCoin.connect(user1).faucet())
         .to.emit(meritCoin, "FaucetClaim")
         .withArgs(user1.address, expected);

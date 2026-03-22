@@ -11,9 +11,11 @@ contract MeritCoin is ERC20 {
     mapping(address => uint256) public paymentsMade;
     mapping(address => uint256) public paymentsReceived;
 
-    uint256 public constant FAUCET_AMOUNT = 100 * 10 ** 18;
+    uint256 public constant FAUCET_AMOUNT = 500 * 10 ** 18;
+    uint256 public constant TOPUP_AMOUNT = 500 * 10 ** 18;
 
     event FaucetClaim(address indexed user, uint256 amount);
+    event TopUp(address indexed user, uint256 amount);
     event SettlementRecorded(
         address indexed payer,
         address indexed receiver,
@@ -50,6 +52,11 @@ contract MeritCoin is ERC20 {
         hasClaimed[msg.sender] = true;
         _mint(msg.sender, FAUCET_AMOUNT);
         emit FaucetClaim(msg.sender, FAUCET_AMOUNT);
+    }
+
+    function requestMore() external {
+        _mint(msg.sender, TOPUP_AMOUNT);
+        emit TopUp(msg.sender, TOPUP_AMOUNT);
     }
 
     function hasClaimedFaucet(address user) external view returns (bool) {
