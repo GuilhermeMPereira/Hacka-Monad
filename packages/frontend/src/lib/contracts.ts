@@ -145,6 +145,7 @@ export const MEETUP_MANAGER_ABI = [
     inputs: [
       { name: "invitees", type: "address[]", internalType: "address[]" },
       { name: "restaurantId", type: "string", internalType: "string" },
+      { name: "stakeAmount", type: "uint256", internalType: "uint256" },
     ],
     outputs: [{ name: "", type: "uint256", internalType: "uint256" }],
     stateMutability: "nonpayable",
@@ -193,7 +194,18 @@ export const MEETUP_MANAGER_ABI = [
       { name: "billAmount", type: "uint256", internalType: "uint256" },
       { name: "billPayer", type: "address", internalType: "address" },
       { name: "createdAt", type: "uint256", internalType: "uint256" },
+      { name: "stakeAmount", type: "uint256", internalType: "uint256" },
     ],
+    stateMutability: "view",
+  },
+  {
+    type: "function",
+    name: "getStakeStatus",
+    inputs: [
+      { name: "meetupId", type: "uint256", internalType: "uint256" },
+      { name: "participant", type: "address", internalType: "address" },
+    ],
+    outputs: [{ name: "", type: "bool", internalType: "bool" }],
     stateMutability: "view",
   },
   {

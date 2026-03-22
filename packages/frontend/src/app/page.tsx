@@ -1,10 +1,15 @@
 "use client";
 
+import { useEffect, useRef } from "react";
 import Link from "next/link";
 import { useAccount } from "wagmi";
 import { formatEther } from "viem";
 import { ConnectButton } from "@rainbow-me/rainbowkit";
 import { useMeritBalance, useHasClaimed, useClaimFaucet } from "@/hooks/useMeritCoin";
+import { useOnboarding } from "@/hooks/useOnboarding";
+import { useTransactionHistory } from "@/hooks/useTransactionHistory";
+import { OnboardingTutorial } from "@/components/OnboardingTutorial";
+import { TransactionHistory } from "@/components/TransactionHistory";
 
 export const dynamic = "force-dynamic";
 
@@ -20,6 +25,38 @@ export default function Home() {
     isSuccess: isFaucetSuccess,
     error: faucetError,
   } = useClaimFaucet();
+
+  const { state: onboardingState, resetOnboarding } = useOnboarding();
+  const { addTransaction, updateTransaction } = useTransactionHistory();
+
+  // Track faucet transaction recording
+  const faucetTxIdRef = useRef<string | null>(null);
+  const faucetHashRecordedRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (faucetHash && faucetHashRecordedRef.current !== faucetHash) {
+      faucetHashRecordedRef.current = faucetHash;
+      const txId = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+      faucetTxIdRef.current = txId;
+      addTransaction({
+        id: txId,
+        type: "faucet",
+        hash: faucetHash,
+        timestamp: Date.now(),
+        details: "Resgatou 100 MERIT do faucet",
+        amount: "100 MERIT",
+        status: "pending",
+      });
+    }
+  }, [faucetHash, addTransaction]);
+
+  useEffect(() => {
+    if (isFaucetSuccess && faucetTxIdRef.current) {
+      updateTransaction(faucetTxIdRef.current, { status: "confirmed" });
+    }
+  }, [isFaucetSuccess, updateTransaction]);
+
+  const showOnboarding = isConnected && !onboardingState.completed;
 
   return (
     <div className="space-y-8 max-w-3xl mx-auto">
@@ -54,6 +91,18 @@ export default function Home() {
         </div>
       ) : (
         <>
+          {/* Onboarding Tutorial */}
+          {showOnboarding ? (
+            <OnboardingTutorial />
+          ) : (
+            <button
+              onClick={resetOnboarding}
+              className="text-text-muted text-xs hover:text-text-secondary transition-colors"
+            >
+              Ver tutorial
+            </button>
+          )}
+
           {/* Balance card */}
           <div className="card p-6 space-y-4">
             <div className="flex items-center justify-between">
@@ -149,6 +198,20 @@ export default function Home() {
                 Veja sua reputacao e historico
               </p>
             </Link>
+          </div>
+
+          {/* Compact recent transactions */}
+          <div className="card p-5 space-y-3">
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-semibold text-text-primary">Transacoes Recentes</h3>
+              <Link
+                href="/profile"
+                className="text-secondary text-xs hover:underline"
+              >
+                Ver historico completo
+              </Link>
+            </div>
+            <TransactionHistory compact maxItems={5} />
           </div>
         </>
       )}

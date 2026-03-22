@@ -8,6 +8,7 @@ import { useGetUserMeetups, useGetMeetup } from "@/hooks/useMeetupManager";
 import { ReputationCard } from "@/components/ReputationCard";
 import { FaucetButton } from "@/components/FaucetButton";
 import { FriendsList } from "@/components/FriendsList";
+import { TransactionHistory } from "@/components/TransactionHistory";
 import { shortenAddress } from "@/lib/utils";
 
 const STATUS_LABELS: Record<number, string> = {
@@ -45,9 +46,9 @@ function MeetupHistoryItem({
 
   if (!data) return null;
 
-  // getMeetup now returns a tuple: [id, creator, invitees, restaurantId, status, billAmount, billPayer, createdAt]
+  // getMeetup returns a tuple: [id, creator, invitees, restaurantId, status, billAmount, billPayer, createdAt, stakeAmount]
   const [id, creator, invitees, , status, billAmount] =
-    data as [bigint, string, string[], string, number, bigint, string, bigint];
+    data as [bigint, string, string[], string, number, bigint, string, bigint, bigint];
 
   const isCreator = currentUser.toLowerCase() === creator.toLowerCase();
   const otherLabel = isCreator
@@ -148,6 +149,9 @@ export default function ProfilePage() {
           </div>
         )}
       </div>
+
+      {/* Transaction History */}
+      <TransactionHistory />
 
       {/* Friends */}
       <div>

@@ -18,12 +18,12 @@ export function useCreateMeetup() {
   const { isLoading: isConfirming, isSuccess } =
     useWaitForTransactionReceipt({ hash });
 
-  function createMeetup(invitees: `0x${string}`[], restaurantId: string) {
+  function createMeetup(invitees: `0x${string}`[], restaurantId: string, stakeAmount: bigint) {
     writeContract({
       address: MEETUP_MANAGER_ADDRESS,
       abi: MEETUP_MANAGER_ABI,
       functionName: "createMeetup",
-      args: [invitees, restaurantId],
+      args: [invitees, restaurantId, stakeAmount],
     });
   }
 
@@ -171,5 +171,22 @@ export function useGetConfirmationStatus(
         : undefined,
     chainId: monadTestnet.id,
     query: { enabled: meetupId !== undefined && !!inviteeAddress },
+  });
+}
+
+export function useGetStakeStatus(
+  meetupId: bigint | undefined,
+  participant: string | undefined
+) {
+  return useReadContract({
+    address: MEETUP_MANAGER_ADDRESS,
+    abi: MEETUP_MANAGER_ABI,
+    functionName: "getStakeStatus",
+    args:
+      meetupId !== undefined && participant
+        ? [meetupId, participant as `0x${string}`]
+        : undefined,
+    chainId: monadTestnet.id,
+    query: { enabled: meetupId !== undefined && !!participant },
   });
 }

@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { formatEther } from "viem";
 import { shortenAddress } from "@/lib/utils";
 
 const STATUS_LABELS: Record<number, string> = {
@@ -26,6 +27,7 @@ interface MeetupCardProps {
   restaurantId: string;
   status: number;
   currentUser?: string;
+  stakeAmount?: bigint;
 }
 
 export function MeetupCard({
@@ -35,6 +37,7 @@ export function MeetupCard({
   restaurantId,
   status,
   currentUser,
+  stakeAmount,
 }: MeetupCardProps) {
   const isCreator = currentUser?.toLowerCase() === creator.toLowerCase();
   const isInvitee = invitees.some(
@@ -69,6 +72,12 @@ export function MeetupCard({
             <p className="text-xs">{invitees.length} convidado{invitees.length !== 1 ? "s" : ""}</p>
           </div>
         </div>
+
+        {stakeAmount !== undefined && stakeAmount > 0n && (
+          <span className="badge-merit text-xs">
+            Stake: {formatEther(stakeAmount)} MERIT
+          </span>
+        )}
 
         {role && (
           <p className="text-xs text-secondary font-medium">Voce: {role}</p>

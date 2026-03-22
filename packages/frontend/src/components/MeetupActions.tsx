@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { parseEther, formatEther } from "viem";
 import {
   useConfirmMeetup,
@@ -11,6 +11,7 @@ import {
 } from "@/hooks/useMeetupManager";
 import { useApproveMerit, useAllowance } from "@/hooks/useMeritCoin";
 import { MEETUP_MANAGER_ADDRESS } from "@/lib/contracts";
+import { useTransactionHistory } from "@/hooks/useTransactionHistory";
 
 interface MeetupActionsProps {
   meetupId: bigint;
@@ -19,6 +20,7 @@ interface MeetupActionsProps {
   invitees: string[];
   billAmount: bigint;
   billPayer: string;
+  stakeAmount: bigint;
   currentUser: string;
   onSuccess?: () => void;
 }
@@ -65,6 +67,7 @@ export function MeetupActions({
   invitees,
   billAmount,
   billPayer,
+  stakeAmount,
   currentUser,
   onSuccess,
 }: MeetupActionsProps) {
@@ -96,6 +99,144 @@ export function MeetupActions({
   const cancel = useCancelMeetup();
   const approveMerit = useApproveMerit();
 
+  // Transaction history
+  const { addTransaction, updateTransaction } = useTransactionHistory();
+
+  // Each action needs two refs: one for hash dedup, one for txId tracking
+  const confirmHashRef = useRef<string | null>(null);
+  const confirmTxIdRef = useRef<string | null>(null);
+  const registerHashRef = useRef<string | null>(null);
+  const registerTxIdRef = useRef<string | null>(null);
+  const settleHashRef = useRef<string | null>(null);
+  const settleTxIdRef = useRef<string | null>(null);
+  const cancelHashRef = useRef<string | null>(null);
+  const cancelTxIdRef = useRef<string | null>(null);
+  const approveHashRef = useRef<string | null>(null);
+  const approveTxIdRef = useRef<string | null>(null);
+  const stakeApproveHashRef = useRef<string | null>(null);
+  const stakeApproveTxIdRef = useRef<string | null>(null);
+
+  const meetupLabel = `#${meetupId.toString()}`;
+
+  // Record confirm transaction
+  useEffect(() => {
+    if (confirm.hash && confirmHashRef.current !== confirm.hash) {
+      confirmHashRef.current = confirm.hash;
+      const txId = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+      confirmTxIdRef.current = txId;
+      addTransaction({
+        id: txId,
+        type: "confirm_meetup",
+        hash: confirm.hash,
+        timestamp: Date.now(),
+        details: `Confirmou meetup ${meetupLabel}`,
+        status: "pending",
+      });
+    }
+  }, [confirm.hash, addTransaction, meetupLabel]);
+
+  useEffect(() => {
+    if (confirm.isSuccess && confirmTxIdRef.current) {
+      updateTransaction(confirmTxIdRef.current, { status: "confirmed" });
+    }
+  }, [confirm.isSuccess, updateTransaction]);
+
+  // Record register bill transaction
+  useEffect(() => {
+    if (register.hash && registerHashRef.current !== register.hash) {
+      registerHashRef.current = register.hash;
+      const txId = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+      registerTxIdRef.current = txId;
+      addTransaction({
+        id: txId,
+        type: "register_bill",
+        hash: register.hash,
+        timestamp: Date.now(),
+        details: `Registrou conta no meetup ${meetupLabel}`,
+        amount: billInput ? `${billInput} MERIT` : undefined,
+        status: "pending",
+      });
+    }
+  }, [register.hash, addTransaction, meetupLabel, billInput]);
+
+  useEffect(() => {
+    if (register.isSuccess && registerTxIdRef.current) {
+      updateTransaction(registerTxIdRef.current, { status: "confirmed" });
+    }
+  }, [register.isSuccess, updateTransaction]);
+
+  // Record settle bill transaction
+  useEffect(() => {
+    if (settle.hash && settleHashRef.current !== settle.hash) {
+      settleHashRef.current = settle.hash;
+      const txId = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+      settleTxIdRef.current = txId;
+      addTransaction({
+        id: txId,
+        type: "settle_bill",
+        hash: settle.hash,
+        timestamp: Date.now(),
+        details: `Liquidou conta do meetup ${meetupLabel}`,
+        amount: `${formatEther(splitAmount)} MERIT`,
+        status: "pending",
+      });
+    }
+  }, [settle.hash, addTransaction, meetupLabel, splitAmount]);
+
+  useEffect(() => {
+    if (settle.isSuccess && settleTxIdRef.current) {
+      updateTransaction(settleTxIdRef.current, { status: "confirmed" });
+    }
+  }, [settle.isSuccess, updateTransaction]);
+
+  // Record cancel transaction
+  useEffect(() => {
+    if (cancel.hash && cancelHashRef.current !== cancel.hash) {
+      cancelHashRef.current = cancel.hash;
+      const txId = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+      cancelTxIdRef.current = txId;
+      addTransaction({
+        id: txId,
+        type: "cancel_meetup",
+        hash: cancel.hash,
+        timestamp: Date.now(),
+        details: `Cancelou meetup ${meetupLabel}`,
+        status: "pending",
+      });
+    }
+  }, [cancel.hash, addTransaction, meetupLabel]);
+
+  useEffect(() => {
+    if (cancel.isSuccess && cancelTxIdRef.current) {
+      updateTransaction(cancelTxIdRef.current, { status: "confirmed" });
+    }
+  }, [cancel.isSuccess, updateTransaction]);
+
+  // Record approve transaction (for settle)
+  useEffect(() => {
+    if (approveMerit.hash && approveHashRef.current !== approveMerit.hash) {
+      approveHashRef.current = approveMerit.hash;
+      const txId = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+      approveTxIdRef.current = txId;
+      addTransaction({
+        id: txId,
+        type: "approve",
+        hash: approveMerit.hash,
+        timestamp: Date.now(),
+        details: `Aprovou ${formatEther(splitAmount)} MERIT para liquidacao`,
+        amount: `${formatEther(splitAmount)} MERIT`,
+        status: "pending",
+      });
+    }
+  }, [approveMerit.hash, addTransaction, splitAmount]);
+
+  useEffect(() => {
+    if (approveMerit.isSuccess && approveTxIdRef.current) {
+      updateTransaction(approveTxIdRef.current, { status: "confirmed" });
+    }
+  }, [approveMerit.isSuccess, updateTransaction]);
+
+  // Allowance check for settle (debtor paying split)
   const { data: currentAllowance } = useAllowance(
     isDebtor ? (currentUser as `0x${string}`) : undefined,
     MEETUP_MANAGER_ADDRESS
@@ -104,10 +245,85 @@ export function MeetupActions({
   const hasEnoughAllowance =
     currentAllowance !== undefined && currentAllowance >= splitAmount;
 
-  // Pending + invitee who hasn't confirmed -> Confirm
+  // Allowance check for stake (invitee confirming with stake)
+  const needsStakeApproval = status === 0 && isInvitee && !hasConfirmed && stakeAmount > 0n;
+  const { data: stakeAllowance, refetch: refetchStakeAllowance } = useAllowance(
+    needsStakeApproval ? (currentUser as `0x${string}`) : undefined,
+    MEETUP_MANAGER_ADDRESS
+  );
+  const hasEnoughStakeAllowance =
+    stakeAllowance !== undefined && stakeAllowance >= stakeAmount;
+  const approveStake = useApproveMerit();
+
+  useEffect(() => {
+    if (approveStake.isSuccess) {
+      refetchStakeAllowance();
+    }
+  }, [approveStake.isSuccess, refetchStakeAllowance]);
+
+  // Record stake approve transaction
+  useEffect(() => {
+    if (approveStake.hash && stakeApproveHashRef.current !== approveStake.hash) {
+      stakeApproveHashRef.current = approveStake.hash;
+      const txId = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+      stakeApproveTxIdRef.current = txId;
+      addTransaction({
+        id: txId,
+        type: "stake",
+        hash: approveStake.hash,
+        timestamp: Date.now(),
+        details: `Aprovou ${formatEther(stakeAmount)} MERIT para stake`,
+        amount: `${formatEther(stakeAmount)} MERIT`,
+        status: "pending",
+      });
+    }
+  }, [approveStake.hash, addTransaction, stakeAmount]);
+
+  useEffect(() => {
+    if (approveStake.isSuccess && stakeApproveTxIdRef.current) {
+      updateTransaction(stakeApproveTxIdRef.current, { status: "confirmed" });
+    }
+  }, [approveStake.isSuccess, updateTransaction]);
+
+  // Pending + invitee who hasn't confirmed -> Confirm (with stake approval if needed)
   if (status === 0 && isInvitee && !hasConfirmed) {
+    // Stake > 0 and not enough allowance -> show approve button first
+    if (stakeAmount > 0n && !hasEnoughStakeAllowance) {
+      return (
+        <div className="space-y-3">
+          <p className="text-sm text-text-secondary">
+            Ao confirmar, {formatEther(stakeAmount)} MERIT serao travados como garantia
+          </p>
+          <button
+            onClick={() => {
+              approveStake.approve(MEETUP_MANAGER_ADDRESS, stakeAmount);
+            }}
+            disabled={approveStake.isPending || approveStake.isConfirming}
+            className="btn-secondary w-full disabled:opacity-40 disabled:cursor-not-allowed"
+          >
+            {approveStake.isPending
+              ? "Confirme na wallet..."
+              : approveStake.isConfirming
+              ? "Confirmando (~400ms)..."
+              : `Aprovar ${formatEther(stakeAmount)} MERIT para stake`}
+          </button>
+          <TxFeedback
+            hash={approveStake.hash}
+            isSuccess={approveStake.isSuccess}
+            error={approveStake.error}
+            successMessage="Aprovacao concedida! Agora confirme o meetup."
+          />
+        </div>
+      );
+    }
+
     return (
       <div className="space-y-3">
+        {stakeAmount > 0n && (
+          <p className="text-sm text-text-secondary">
+            Ao confirmar, {formatEther(stakeAmount)} MERIT serao travados como garantia
+          </p>
+        )}
         <button
           onClick={() => {
             confirm.confirmMeetup(meetupId);
@@ -119,6 +335,8 @@ export function MeetupActions({
             ? "Confirme na wallet..."
             : confirm.isConfirming
             ? "Confirmando (~400ms)..."
+            : stakeAmount > 0n
+            ? `Confirmar Meetup (stake: ${formatEther(stakeAmount)} MERIT)`
             : "Confirmar Meetup"}
         </button>
         <TxFeedback
@@ -232,6 +450,11 @@ export function MeetupActions({
               {formatEther(splitAmount)} MERIT
             </span>
           </p>
+          {stakeAmount > 0n && (
+            <p className="text-sm text-warning">
+              Seu stake de {formatEther(stakeAmount)} MERIT sera devolvido ao pagar
+            </p>
+          )}
         </div>
 
         {!hasEnoughAllowance ? (

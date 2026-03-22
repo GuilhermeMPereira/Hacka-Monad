@@ -2,6 +2,7 @@
 
 import { useParams } from "next/navigation";
 import { useAccount } from "wagmi";
+import { formatEther } from "viem";
 import { ConnectButton } from "@rainbow-me/rainbowkit";
 import { useGetMeetup, useGetConfirmationStatus } from "@/hooks/useMeetupManager";
 import { MeetupActions } from "@/components/MeetupActions";
@@ -86,9 +87,9 @@ export default function MeetupDetailPage() {
     );
   }
 
-  // getMeetup now returns a tuple: [id, creator, invitees, restaurantId, status, billAmount, billPayer, createdAt]
-  const [id, creator, invitees, restaurantId, status, billAmount, billPayer, createdAt] =
-    data as [bigint, string, string[], string, number, bigint, string, bigint];
+  // getMeetup returns a tuple: [id, creator, invitees, restaurantId, status, billAmount, billPayer, createdAt, stakeAmount]
+  const [id, creator, invitees, restaurantId, status, billAmount, billPayer, createdAt, stakeAmount] =
+    data as [bigint, string, string[], string, number, bigint, string, bigint, bigint];
 
   const createdDate = new Date(Number(createdAt) * 1000);
   const isCreator = address?.toLowerCase() === creator.toLowerCase();
@@ -139,6 +140,16 @@ export default function MeetupDetailPage() {
             <span className="text-text-muted">Convidados</span>
             <p className="mt-0.5">{invitees.length} convidado{invitees.length !== 1 ? "s" : ""}</p>
           </div>
+          <div>
+            <span className="text-text-muted">Stake</span>
+            <p className="mt-0.5">
+              {stakeAmount > 0n ? (
+                <span className="badge-merit text-xs">{formatEther(stakeAmount)} MERIT por participante</span>
+              ) : (
+                <span className="text-text-muted">Sem stake</span>
+              )}
+            </p>
+          </div>
         </div>
 
         {/* Invitees list with confirmation status */}
@@ -175,6 +186,7 @@ export default function MeetupDetailPage() {
           invitees={invitees}
           billAmount={billAmount}
           billPayer={billPayer}
+          stakeAmount={stakeAmount}
           currentUser={address!}
           onSuccess={() => refetch()}
         />

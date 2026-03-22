@@ -18,12 +18,14 @@ contract MeetupManager {
         uint256 billAmount;
         address billPayer;
         uint256 createdAt;
+        uint256 stakeAmount;
     }
 
     mapping(uint256 => Meetup) private meetups;
     mapping(uint256 => mapping(address => bool)) public hasConfirmed;
     mapping(uint256 => uint256) public confirmCount;
     mapping(address => uint256[]) private userMeetups;
+    mapping(uint256 => mapping(address => bool)) public stakeDeposited;
     uint256 private _meetupCount;
 
     event MeetupCreated(uint256 indexed meetupId, address indexed creator, address[] invitees, string restaurantId);
@@ -31,12 +33,15 @@ contract MeetupManager {
     event BillRegistered(uint256 indexed meetupId, address indexed payer, uint256 amount);
     event BillSettled(uint256 indexed meetupId, uint256 splitAmount, uint256 participants);
     event MeetupCancelled(uint256 indexed meetupId);
+    event StakeDeposited(uint256 indexed meetupId, address indexed participant, uint256 amount);
+    event StakeReturned(uint256 indexed meetupId, address indexed participant, uint256 amount);
+    event StakeForfeited(uint256 indexed meetupId, address indexed participant, address indexed billPayer, uint256 amount);
 
     constructor(address _meritCoin) {
         meritCoin = MeritCoin(_meritCoin);
     }
 
-    function createMeetup(address[] calldata invitees, string calldata restaurantId) external returns (uint256) {
+    function createMeetup(address[] calldata invitees, string calldata restaurantId, uint256 stakeAmount) external returns (uint256) {
         require(invitees.length > 0, "Need at least one invitee");
         require(invitees.length <= 10, "Max 10 invitees");
         for (uint256 i = 0; i < invitees.length; i++) {
@@ -58,6 +63,14 @@ contract MeetupManager {
         m.restaurantId = restaurantId;
         m.status = MeetupStatus.Pending;
         m.createdAt = block.timestamp;
+        m.stakeAmount = stakeAmount;
+
+        // Transfer creator's stake if stakeAmount > 0
+        if (stakeAmount > 0) {
+            IERC20(address(meritCoin)).transferFrom(msg.sender, address(this), stakeAmount);
+            stakeDeposited[meetupId][msg.sender] = true;
+            emit StakeDeposited(meetupId, msg.sender, stakeAmount);
+        }
 
         userMeetups[msg.sender].push(meetupId);
         for (uint256 i = 0; i < invitees.length; i++) {
@@ -73,6 +86,13 @@ contract MeetupManager {
         require(m.status == MeetupStatus.Pending, "Not pending");
         require(_isInvitee(m, msg.sender), "Not an invitee");
         require(!hasConfirmed[meetupId][msg.sender], "Already confirmed");
+
+        // Transfer invitee's stake if stakeAmount > 0
+        if (m.stakeAmount > 0) {
+            IERC20(address(meritCoin)).transferFrom(msg.sender, address(this), m.stakeAmount);
+            stakeDeposited[meetupId][msg.sender] = true;
+            emit StakeDeposited(meetupId, msg.sender, m.stakeAmount);
+        }
 
         hasConfirmed[meetupId][msg.sender] = true;
         confirmCount[meetupId]++;
@@ -106,31 +126,79 @@ contract MeetupManager {
         uint256 totalParticipants = m.invitees.length + 1; // invitees + creator
         uint256 splitAmount = m.billAmount / totalParticipants;
 
+        // Checks-effects-interactions: set status BEFORE transfers
         m.status = MeetupStatus.Settled;
 
-        // Transfer from each non-payer to the bill payer
+        // Process each non-payer participant
         // Creator
         if (m.creator != m.billPayer) {
-            IERC20(address(meritCoin)).transferFrom(m.creator, m.billPayer, splitAmount);
-            meritCoin.recordSettlement(m.creator, m.billPayer, splitAmount);
+            _processParticipantSettlement(meetupId, m, m.creator, m.billPayer, splitAmount);
         }
         // Each invitee
         for (uint256 i = 0; i < m.invitees.length; i++) {
             if (m.invitees[i] != m.billPayer) {
-                IERC20(address(meritCoin)).transferFrom(m.invitees[i], m.billPayer, splitAmount);
-                meritCoin.recordSettlement(m.invitees[i], m.billPayer, splitAmount);
+                _processParticipantSettlement(meetupId, m, m.invitees[i], m.billPayer, splitAmount);
             }
+        }
+
+        // Return billPayer's stake
+        if (m.stakeAmount > 0 && stakeDeposited[meetupId][m.billPayer]) {
+            IERC20(address(meritCoin)).transfer(m.billPayer, m.stakeAmount);
+            emit StakeReturned(meetupId, m.billPayer, m.stakeAmount);
         }
 
         emit BillSettled(meetupId, splitAmount, totalParticipants);
     }
 
+    function _processParticipantSettlement(
+        uint256 meetupId, Meetup storage m, address participant, address payer, uint256 splitAmount
+    ) internal {
+        IERC20 token = IERC20(address(meritCoin));
+        bool canPay = token.allowance(participant, address(this)) >= splitAmount
+                      && token.balanceOf(participant) >= splitAmount;
+
+        if (canPay) {
+            token.transferFrom(participant, payer, splitAmount);
+            meritCoin.recordSettlement(participant, payer, splitAmount);
+            // Return stake
+            if (m.stakeAmount > 0 && stakeDeposited[meetupId][participant]) {
+                token.transfer(participant, m.stakeAmount);
+                emit StakeReturned(meetupId, participant, m.stakeAmount);
+            }
+        } else {
+            // Forfeit stake to bill payer
+            if (m.stakeAmount > 0 && stakeDeposited[meetupId][participant]) {
+                token.transfer(payer, m.stakeAmount);
+                emit StakeForfeited(meetupId, participant, payer, m.stakeAmount);
+            }
+        }
+    }
+
     function cancelMeetup(uint256 meetupId) external {
         Meetup storage m = meetups[meetupId];
         require(m.creator == msg.sender, "Only creator");
-        require(m.status == MeetupStatus.Pending, "Not pending");
+        require(m.status == MeetupStatus.Pending || m.status == MeetupStatus.Confirmed, "Cannot cancel");
 
+        // Set status BEFORE transfers (checks-effects-interactions)
         m.status = MeetupStatus.Cancelled;
+
+        // Return all deposited stakes
+        if (m.stakeAmount > 0) {
+            IERC20 token = IERC20(address(meritCoin));
+            // Return creator's stake
+            if (stakeDeposited[meetupId][m.creator]) {
+                token.transfer(m.creator, m.stakeAmount);
+                emit StakeReturned(meetupId, m.creator, m.stakeAmount);
+            }
+            // Return invitees' stakes
+            for (uint256 i = 0; i < m.invitees.length; i++) {
+                if (stakeDeposited[meetupId][m.invitees[i]]) {
+                    token.transfer(m.invitees[i], m.stakeAmount);
+                    emit StakeReturned(meetupId, m.invitees[i], m.stakeAmount);
+                }
+            }
+        }
+
         emit MeetupCancelled(meetupId);
     }
 
@@ -142,10 +210,11 @@ contract MeetupManager {
         MeetupStatus status,
         uint256 billAmount,
         address billPayer,
-        uint256 createdAt
+        uint256 createdAt,
+        uint256 stakeAmount
     ) {
         Meetup storage m = meetups[meetupId];
-        return (m.id, m.creator, m.invitees, m.restaurantId, m.status, m.billAmount, m.billPayer, m.createdAt);
+        return (m.id, m.creator, m.invitees, m.restaurantId, m.status, m.billAmount, m.billPayer, m.createdAt, m.stakeAmount);
     }
 
     function getUserMeetups(address user) external view returns (uint256[] memory) {
@@ -158,6 +227,10 @@ contract MeetupManager {
 
     function getConfirmationStatus(uint256 meetupId, address invitee) external view returns (bool) {
         return hasConfirmed[meetupId][invitee];
+    }
+
+    function getStakeStatus(uint256 meetupId, address participant) external view returns (bool) {
+        return stakeDeposited[meetupId][participant];
     }
 
     // Internal helpers

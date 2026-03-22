@@ -1,14 +1,17 @@
 "use client";
 
-import { Suspense, useState, useEffect } from "react";
+import { Suspense, useState, useEffect, useRef } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { useAccount } from "wagmi";
-import { isAddress } from "viem";
+import { isAddress, parseEther, formatEther } from "viem";
 import { ConnectButton } from "@rainbow-me/rainbowkit";
 import { useCreateMeetup } from "@/hooks/useMeetupManager";
+import { useAllowance, useApproveMerit } from "@/hooks/useMeritCoin";
+import { MEETUP_MANAGER_ADDRESS } from "@/lib/contracts";
 import { fetchRestaurants, type Restaurant } from "@/lib/api";
 import { FriendsList } from "@/components/FriendsList";
 import { shortenAddress } from "@/lib/utils";
+import { useTransactionHistory } from "@/hooks/useTransactionHistory";
 
 function CreateMeetupForm() {
   const { address, isConnected } = useAccount();
@@ -20,6 +23,7 @@ function CreateMeetupForm() {
   const [inviteeInput, setInviteeInput] = useState("");
   const [invitees, setInvitees] = useState<string[]>([]);
   const [restaurantId, setRestaurantId] = useState(preselectedRestaurant);
+  const [stakeInput, setStakeInput] = useState("");
   const [restaurants, setRestaurants] = useState<Restaurant[]>([]);
   const [loadingRestaurants, setLoadingRestaurants] = useState(true);
 
@@ -31,6 +35,29 @@ function CreateMeetupForm() {
     isSuccess,
     error,
   } = useCreateMeetup();
+
+  const stakeAmount = stakeInput && !isNaN(Number(stakeInput)) && Number(stakeInput) > 0
+    ? parseEther(stakeInput)
+    : 0n;
+
+  const { data: currentAllowance, refetch: refetchAllowance } = useAllowance(
+    stakeAmount > 0n ? (address as `0x${string}`) : undefined,
+    MEETUP_MANAGER_ADDRESS
+  );
+  const approveMerit = useApproveMerit();
+
+  const hasEnoughAllowance =
+    currentAllowance !== undefined && currentAllowance >= stakeAmount;
+
+  const { addTransaction, updateTransaction } = useTransactionHistory();
+  const meetupTxIdRef = useRef<string | null>(null);
+  const meetupHashRecordedRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (approveMerit.isSuccess) {
+      refetchAllowance();
+    }
+  }, [approveMerit.isSuccess, refetchAllowance]);
 
   useEffect(() => {
     fetchRestaurants()
@@ -47,6 +74,29 @@ function CreateMeetupForm() {
       return () => clearTimeout(timer);
     }
   }, [isSuccess, hash, router]);
+
+  // Record meetup creation transaction
+  useEffect(() => {
+    if (hash && meetupHashRecordedRef.current !== hash) {
+      meetupHashRecordedRef.current = hash;
+      const txId = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+      meetupTxIdRef.current = txId;
+      addTransaction({
+        id: txId,
+        type: "create_meetup",
+        hash,
+        timestamp: Date.now(),
+        details: `Criou meetup com ${invitees.length} convidado${invitees.length !== 1 ? "s" : ""}`,
+        status: "pending",
+      });
+    }
+  }, [hash, addTransaction, invitees.length]);
+
+  useEffect(() => {
+    if (isSuccess && meetupTxIdRef.current) {
+      updateTransaction(meetupTxIdRef.current, { status: "confirmed" });
+    }
+  }, [isSuccess, updateTransaction]);
 
   function addInvitee(addr: string) {
     const normalized = addr.toLowerCase();
@@ -74,7 +124,8 @@ function CreateMeetupForm() {
     if (!restaurantId) return;
     createMeetup(
       invitees.map((a) => a as `0x${string}`),
-      restaurantId
+      restaurantId,
+      parseEther(stakeInput || "0")
     );
   }
 
@@ -200,22 +251,78 @@ function CreateMeetupForm() {
             )}
         </div>
 
-        <button
-          type="submit"
-          disabled={
-            isPending ||
-            isConfirming ||
-            !restaurantId ||
-            invitees.length === 0
-          }
-          className="btn-primary w-full disabled:opacity-40 disabled:cursor-not-allowed"
-        >
-          {isPending
-            ? "Confirme na wallet..."
-            : isConfirming
-            ? "Confirmando (~400ms)..."
-            : "Criar Meetup"}
-        </button>
+        {/* Stake amount */}
+        <div>
+          <label className="text-sm text-text-secondary block mb-1">
+            Stake por participante (MERIT)
+          </label>
+          <input
+            type="text"
+            placeholder="0"
+            value={stakeInput}
+            onChange={(e) => setStakeInput(e.target.value)}
+            className="w-full bg-bg border border-border rounded-btn px-3 py-2 text-sm focus:outline-none focus:border-secondary transition-colors"
+          />
+          <p className="text-text-muted text-xs mt-1">
+            Valor travado como garantia. Deixe 0 para sem stake.
+          </p>
+        </div>
+
+        {stakeAmount > 0n && !hasEnoughAllowance ? (
+          <>
+            <button
+              type="button"
+              onClick={() => {
+                approveMerit.approve(MEETUP_MANAGER_ADDRESS, stakeAmount);
+              }}
+              disabled={approveMerit.isPending || approveMerit.isConfirming}
+              className="btn-secondary w-full disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              {approveMerit.isPending
+                ? "Confirme na wallet..."
+                : approveMerit.isConfirming
+                ? "Confirmando (~400ms)..."
+                : `Aprovar ${formatEther(stakeAmount)} MERIT`}
+            </button>
+            {approveMerit.hash && (
+              <div className="text-sm space-y-1">
+                <a
+                  href={`https://testnet.monad.xyz/tx/${approveMerit.hash}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-secondary hover:underline font-mono text-xs break-all"
+                >
+                  {approveMerit.hash}
+                </a>
+              </div>
+            )}
+            {approveMerit.isSuccess && (
+              <p className="text-success text-sm">Aprovacao concedida!</p>
+            )}
+            {approveMerit.error && (
+              <p className="text-error text-sm">
+                Erro: {approveMerit.error.message.slice(0, 100)}
+              </p>
+            )}
+          </>
+        ) : (
+          <button
+            type="submit"
+            disabled={
+              isPending ||
+              isConfirming ||
+              !restaurantId ||
+              invitees.length === 0
+            }
+            className="btn-primary w-full disabled:opacity-40 disabled:cursor-not-allowed"
+          >
+            {isPending
+              ? "Confirme na wallet..."
+              : isConfirming
+              ? "Confirmando (~400ms)..."
+              : "Criar Meetup"}
+          </button>
+        )}
       </form>
 
       {/* Friends list for quick adding */}

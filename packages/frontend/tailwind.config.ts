@@ -8,39 +8,39 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        // Primary — Amber/Gold (valor, mérito, calor)
+        // Primary — Amber/Gold (valor, merito, calor)
         primary: {
-          DEFAULT: "#E8A317",
-          hover: "#C4880D",
-          light: "#F5C563",
+          DEFAULT: "var(--color-primary)",
+          hover: "var(--color-primary-hover)",
+          light: "var(--color-primary-light)",
         },
-        // Secondary — Violet (blockchain, tech, confiança)
+        // Secondary — Violet (blockchain, tech, confianca)
         secondary: {
-          DEFAULT: "#6C5CE7",
-          hover: "#5A4BD1",
-          light: "#8B7EF0",
+          DEFAULT: "var(--color-secondary)",
+          hover: "var(--color-secondary-hover)",
+          light: "var(--color-secondary-light)",
         },
         // Backgrounds
         bg: {
-          DEFAULT: "#121214",
-          surface: "#1C1C22",
-          elevated: "#26262E",
+          DEFAULT: "var(--color-bg)",
+          surface: "var(--color-bg-surface)",
+          elevated: "var(--color-bg-elevated)",
         },
         // Borders
         border: {
-          DEFAULT: "#2E2E38",
-          light: "#3A3A46",
+          DEFAULT: "var(--color-border)",
+          light: "var(--color-border-light)",
         },
         // Text
         text: {
-          primary: "#F0EDE8",
-          secondary: "#9B9590",
-          muted: "#5C5A65",
+          primary: "var(--color-text-primary)",
+          secondary: "var(--color-text-secondary)",
+          muted: "var(--color-text-muted)",
         },
         // Semantic
-        success: "#36D399",
-        error: "#F87272",
-        warning: "#FBBD23",
+        success: "var(--color-success)",
+        error: "var(--color-error)",
+        warning: "var(--color-warning)",
       },
       fontFamily: {
         sans: ["var(--font-inter)", "system-ui", "-apple-system", "sans-serif"],
@@ -51,8 +51,8 @@ const config: Config = {
         btn: "8px",
       },
       boxShadow: {
-        "glow-gold": "0 0 20px rgba(232, 163, 23, 0.10)",
-        "glow-violet": "0 0 20px rgba(108, 92, 231, 0.10)",
+        "glow-gold": "var(--shadow-glow-gold)",
+        "glow-violet": "var(--shadow-glow-violet)",
       },
     },
   },
