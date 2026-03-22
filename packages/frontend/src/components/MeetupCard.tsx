@@ -1,0 +1,80 @@
+"use client";
+
+import Link from "next/link";
+import { shortenAddress } from "@/lib/utils";
+
+const STATUS_LABELS: Record<number, string> = {
+  0: "Pendente",
+  1: "Confirmado",
+  2: "Conta Registrada",
+  3: "Liquidado",
+  4: "Cancelado",
+};
+
+const STATUS_COLORS: Record<number, string> = {
+  0: "text-warning",
+  1: "text-secondary",
+  2: "text-primary",
+  3: "text-success",
+  4: "text-error",
+};
+
+interface MeetupCardProps {
+  meetupId: bigint;
+  creator: string;
+  invitee: string;
+  restaurantId: string;
+  status: number;
+  currentUser?: string;
+}
+
+export function MeetupCard({
+  meetupId,
+  creator,
+  invitee,
+  restaurantId,
+  status,
+  currentUser,
+}: MeetupCardProps) {
+  const role =
+    currentUser?.toLowerCase() === creator.toLowerCase()
+      ? "Criador"
+      : currentUser?.toLowerCase() === invitee.toLowerCase()
+      ? "Convidado"
+      : "";
+
+  return (
+    <Link href={`/meetups/${meetupId.toString()}`}>
+      <div className="card p-5 space-y-3 cursor-pointer">
+        <div className="flex items-start justify-between">
+          <div>
+            <h3 className="font-semibold text-text-primary">
+              Meetup #{meetupId.toString()}
+            </h3>
+            <p className="text-xs text-text-muted">
+              Restaurante: {restaurantId}
+            </p>
+          </div>
+          <span className={`text-sm font-semibold ${STATUS_COLORS[status] ?? "text-text-muted"}`}>
+            {STATUS_LABELS[status] ?? "Desconhecido"}
+          </span>
+        </div>
+
+        <div className="grid grid-cols-2 gap-2 text-sm">
+          <div>
+            <span className="text-text-muted">Criador</span>
+            <p className="font-mono text-xs">{shortenAddress(creator)}</p>
+          </div>
+          <div>
+            <span className="text-text-muted">Convidado</span>
+            <p className="font-mono text-xs">{shortenAddress(invitee)}</p>
+          </div>
+        </div>
+
+        {role && (
+          <p className="text-xs text-secondary font-medium">Voce: {role}</p>
+        )}
+      </div>
+    </Link>
+  );
+}

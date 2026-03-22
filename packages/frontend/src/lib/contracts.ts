@@ -52,3 +52,169 @@ export const SIMPLE_STORAGE_ABI = [
     ],
   },
 ] as const;
+
+// ── MeritCoin ──────────────────────────────
+
+export const MERITCOIN_ADDRESS = (process.env.NEXT_PUBLIC_MERITCOIN_ADDRESS ??
+  "0x0000000000000000000000000000000000000000") as `0x${string}`;
+
+export const MERITCOIN_ABI = [
+  {
+    type: "function",
+    name: "faucet",
+    inputs: [],
+    outputs: [],
+    stateMutability: "nonpayable",
+  },
+  {
+    type: "function",
+    name: "hasClaimedFaucet",
+    inputs: [{ name: "user", type: "address", internalType: "address" }],
+    outputs: [{ name: "", type: "bool", internalType: "bool" }],
+    stateMutability: "view",
+  },
+  {
+    type: "function",
+    name: "balanceOf",
+    inputs: [{ name: "account", type: "address", internalType: "address" }],
+    outputs: [{ name: "", type: "uint256", internalType: "uint256" }],
+    stateMutability: "view",
+  },
+  {
+    type: "function",
+    name: "getReputation",
+    inputs: [{ name: "user", type: "address", internalType: "address" }],
+    outputs: [
+      { name: "paid", type: "uint256", internalType: "uint256" },
+      { name: "received", type: "uint256", internalType: "uint256" },
+    ],
+    stateMutability: "view",
+  },
+  {
+    type: "function",
+    name: "approve",
+    inputs: [
+      { name: "spender", type: "address", internalType: "address" },
+      { name: "value", type: "uint256", internalType: "uint256" },
+    ],
+    outputs: [{ name: "", type: "bool", internalType: "bool" }],
+    stateMutability: "nonpayable",
+  },
+  {
+    type: "function",
+    name: "allowance",
+    inputs: [
+      { name: "owner", type: "address", internalType: "address" },
+      { name: "spender", type: "address", internalType: "address" },
+    ],
+    outputs: [{ name: "", type: "uint256", internalType: "uint256" }],
+    stateMutability: "view",
+  },
+  {
+    type: "function",
+    name: "name",
+    inputs: [],
+    outputs: [{ name: "", type: "string", internalType: "string" }],
+    stateMutability: "view",
+  },
+  {
+    type: "function",
+    name: "symbol",
+    inputs: [],
+    outputs: [{ name: "", type: "string", internalType: "string" }],
+    stateMutability: "view",
+  },
+  {
+    type: "function",
+    name: "decimals",
+    inputs: [],
+    outputs: [{ name: "", type: "uint8", internalType: "uint8" }],
+    stateMutability: "view",
+  },
+] as const;
+
+// ── MeetupManager ──────────────────────────
+
+export const MEETUP_MANAGER_ADDRESS = (process.env.NEXT_PUBLIC_MEETUP_MANAGER_ADDRESS ??
+  "0x0000000000000000000000000000000000000000") as `0x${string}`;
+
+export const MEETUP_MANAGER_ABI = [
+  {
+    type: "function",
+    name: "createMeetup",
+    inputs: [
+      { name: "invitee", type: "address", internalType: "address" },
+      { name: "restaurantId", type: "string", internalType: "string" },
+    ],
+    outputs: [{ name: "", type: "uint256", internalType: "uint256" }],
+    stateMutability: "nonpayable",
+  },
+  {
+    type: "function",
+    name: "confirmMeetup",
+    inputs: [{ name: "meetupId", type: "uint256", internalType: "uint256" }],
+    outputs: [],
+    stateMutability: "nonpayable",
+  },
+  {
+    type: "function",
+    name: "registerBill",
+    inputs: [
+      { name: "meetupId", type: "uint256", internalType: "uint256" },
+      { name: "amount", type: "uint256", internalType: "uint256" },
+    ],
+    outputs: [],
+    stateMutability: "nonpayable",
+  },
+  {
+    type: "function",
+    name: "settleBill",
+    inputs: [{ name: "meetupId", type: "uint256", internalType: "uint256" }],
+    outputs: [],
+    stateMutability: "nonpayable",
+  },
+  {
+    type: "function",
+    name: "cancelMeetup",
+    inputs: [{ name: "meetupId", type: "uint256", internalType: "uint256" }],
+    outputs: [],
+    stateMutability: "nonpayable",
+  },
+  {
+    type: "function",
+    name: "getMeetup",
+    inputs: [{ name: "meetupId", type: "uint256", internalType: "uint256" }],
+    outputs: [
+      {
+        name: "",
+        type: "tuple",
+        internalType: "struct MeetupManager.Meetup",
+        components: [
+          { name: "id", type: "uint256", internalType: "uint256" },
+          { name: "creator", type: "address", internalType: "address" },
+          { name: "invitee", type: "address", internalType: "address" },
+          { name: "restaurantId", type: "string", internalType: "string" },
+          { name: "status", type: "uint8", internalType: "enum MeetupManager.MeetupStatus" },
+          { name: "billAmount", type: "uint256", internalType: "uint256" },
+          { name: "billPayer", type: "address", internalType: "address" },
+          { name: "createdAt", type: "uint256", internalType: "uint256" },
+        ],
+      },
+    ],
+    stateMutability: "view",
+  },
+  {
+    type: "function",
+    name: "getUserMeetups",
+    inputs: [{ name: "user", type: "address", internalType: "address" }],
+    outputs: [{ name: "", type: "uint256[]", internalType: "uint256[]" }],
+    stateMutability: "view",
+  },
+  {
+    type: "function",
+    name: "meetupCount",
+    inputs: [],
+    outputs: [{ name: "", type: "uint256", internalType: "uint256" }],
+    stateMutability: "view",
+  },
+] as const;

@@ -1,24 +1,157 @@
-import { WalletInfo } from "@/components/WalletInfo";
-import { SendTransaction } from "@/components/SendTransaction";
-import { ContractInteraction } from "@/components/ContractInteraction";
+"use client";
+
+import Link from "next/link";
+import { useAccount } from "wagmi";
+import { formatEther } from "viem";
+import { ConnectButton } from "@rainbow-me/rainbowkit";
+import { useMeritBalance, useHasClaimed, useClaimFaucet } from "@/hooks/useMeritCoin";
 
 export const dynamic = "force-dynamic";
 
 export default function Home() {
+  const { address, isConnected } = useAccount();
+  const { data: balance, isLoading: isBalanceLoading } = useMeritBalance(address);
+  const { data: hasClaimed, isLoading: isClaimedLoading } = useHasClaimed(address);
+  const {
+    claim,
+    hash: faucetHash,
+    isPending: isFaucetPending,
+    isConfirming: isFaucetConfirming,
+    isSuccess: isFaucetSuccess,
+    error: faucetError,
+  } = useClaimFaucet();
+
   return (
-    <div className="space-y-8 max-w-2xl mx-auto">
-      <div className="text-center space-y-2">
-        <h1 className="text-4xl font-bold tracking-tight">
+    <div className="space-y-8 max-w-3xl mx-auto">
+      {/* Hero */}
+      <div className="text-center space-y-3 py-6">
+        <h1 className="text-5xl font-bold tracking-tight">
           Merit<span className="text-primary">Coin</span>
         </h1>
-        <p className="text-text-secondary">
+        <p className="text-text-secondary text-lg max-w-lg mx-auto">
           Encontros crypto. Contas divididas. Reputacao on-chain.
+        </p>
+        <p className="text-text-muted text-sm">
+          Conecte-se com entusiastas crypto, descubra restaurantes e divida contas com MeritCoins na Monad.
         </p>
       </div>
 
-      <WalletInfo />
-      <SendTransaction />
-      <ContractInteraction />
+      {!isConnected ? (
+        /* CTA para conectar wallet */
+        <div className="card p-8 text-center space-y-4">
+          <div className="w-16 h-16 rounded-full gradient-merit flex items-center justify-center mx-auto">
+            <span className="text-bg font-bold text-2xl">M</span>
+          </div>
+          <h2 className="text-xl font-semibold text-text-primary">
+            Conecte sua wallet para comecar
+          </h2>
+          <p className="text-text-secondary text-sm max-w-md mx-auto">
+            Voce precisa de uma wallet compativel com a Monad Testnet para usar o MeritCoin.
+          </p>
+          <div className="flex justify-center">
+            <ConnectButton />
+          </div>
+        </div>
+      ) : (
+        <>
+          {/* Balance card */}
+          <div className="card p-6 space-y-4">
+            <div className="flex items-center justify-between">
+              <h2 className="text-lg font-semibold text-text-primary">Seu Saldo</h2>
+              <span className="badge-merit">
+                {isBalanceLoading
+                  ? "..."
+                  : `${parseFloat(formatEther((balance as bigint) ?? 0n)).toFixed(2)} MERIT`}
+              </span>
+            </div>
+
+            {/* Faucet */}
+            {!isClaimedLoading && !hasClaimed && (
+              <div className="bg-bg rounded-card p-4 space-y-3">
+                <p className="text-sm text-text-secondary">
+                  Voce ainda nao recebeu seus MeritCoins iniciais. Resgate 100 MERIT do faucet!
+                </p>
+                <button
+                  onClick={() => claim()}
+                  disabled={isFaucetPending || isFaucetConfirming}
+                  className="btn-primary disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  {isFaucetPending
+                    ? "Confirme na wallet..."
+                    : isFaucetConfirming
+                    ? "Confirmando (~400ms)..."
+                    : "Resgatar 100 MERIT"}
+                </button>
+                {faucetHash && (
+                  <div className="text-sm space-y-1">
+                    <a
+                      href={`https://testnet.monad.xyz/tx/${faucetHash}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-secondary hover:underline font-mono text-xs break-all"
+                    >
+                      {faucetHash}
+                    </a>
+                  </div>
+                )}
+                {isFaucetSuccess && (
+                  <p className="text-success text-sm">MeritCoins resgatados com sucesso!</p>
+                )}
+                {faucetError && (
+                  <p className="text-error text-sm">
+                    Erro: {faucetError.message.slice(0, 100)}
+                  </p>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Quick actions */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <Link href="/restaurants" className="card p-5 space-y-2 group cursor-pointer">
+              <div className="w-10 h-10 rounded-full bg-bg-elevated flex items-center justify-center text-primary group-hover:bg-primary group-hover:text-bg transition-colors">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M3 2v7c0 1.1.9 2 2 2h4a2 2 0 002-2V2" />
+                  <path d="M7 2v20" />
+                  <path d="M21 15V2v0a5 5 0 00-5 5v6c0 1.1.9 2 2 2h3zm0 0v7" />
+                </svg>
+              </div>
+              <h3 className="font-semibold text-text-primary">Restaurantes</h3>
+              <p className="text-sm text-text-muted">
+                Descubra restaurantes que aceitam crypto
+              </p>
+            </Link>
+
+            <Link href="/meetups/create" className="card p-5 space-y-2 group cursor-pointer">
+              <div className="w-10 h-10 rounded-full bg-bg-elevated flex items-center justify-center text-primary group-hover:bg-primary group-hover:text-bg transition-colors">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" />
+                  <circle cx="9" cy="7" r="4" />
+                  <path d="M23 21v-2a4 4 0 00-3-3.87" />
+                  <path d="M16 3.13a4 4 0 010 7.75" />
+                </svg>
+              </div>
+              <h3 className="font-semibold text-text-primary">Criar Meetup</h3>
+              <p className="text-sm text-text-muted">
+                Convide alguem para um encontro crypto
+              </p>
+            </Link>
+
+            <Link href="/profile" className="card p-5 space-y-2 group cursor-pointer">
+              <div className="w-10 h-10 rounded-full bg-bg-elevated flex items-center justify-center text-primary group-hover:bg-primary group-hover:text-bg transition-colors">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2" />
+                  <circle cx="12" cy="7" r="4" />
+                </svg>
+              </div>
+              <h3 className="font-semibold text-text-primary">Seu Perfil</h3>
+              <p className="text-sm text-text-muted">
+                Veja sua reputacao e historico
+              </p>
+            </Link>
+          </div>
+        </>
+      )}
     </div>
   );
 }
