@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { Suspense, useState, useEffect } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { useAccount } from "wagmi";
 import { isAddress } from "viem";
@@ -8,7 +8,7 @@ import { ConnectButton } from "@rainbow-me/rainbowkit";
 import { useCreateMeetup } from "@/hooks/useMeetupManager";
 import { fetchRestaurants, type Restaurant } from "@/lib/api";
 
-export default function CreateMeetupPage() {
+function CreateMeetupForm() {
   const { address, isConnected } = useAccount();
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -38,7 +38,6 @@ export default function CreateMeetupPage() {
 
   useEffect(() => {
     if (isSuccess && hash) {
-      // Wait a bit then redirect to meetups list
       const timer = setTimeout(() => {
         router.push("/meetups");
       }, 2000);
@@ -177,5 +176,13 @@ export default function CreateMeetupPage() {
         </div>
       )}
     </div>
+  );
+}
+
+export default function CreateMeetupPage() {
+  return (
+    <Suspense fallback={<div className="max-w-lg mx-auto card p-8 text-center"><p className="text-text-muted">Carregando...</p></div>}>
+      <CreateMeetupForm />
+    </Suspense>
   );
 }
